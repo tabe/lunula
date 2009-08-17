@@ -14,7 +14,7 @@
 
 (define a (make-account 101 "lol" "________"))
 
-(connect "localhost" "root" "yoursql" "typo")
+(connect "localhost" "root" "yoursql" "errata")
 
 (let ((x (save a)))
   (assert (eq? #t x)))

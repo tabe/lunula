@@ -18,6 +18,7 @@ uninstall:
 
 test:
 	$(YPSILON) tests/lunula/concurrent.scm
+	$(YPSILON) tests/lunula/gettext.scm
 	$(YPSILON) tests/lunula/html.scm
 	$(YPSILON) tests/lunula/mod_lisp.scm
 	$(YPSILON) tests/lunula/mysql.scm

@@ -3,25 +3,30 @@
           tree->string)
   (import (rnrs))
 
-  (define (put-tree oport tree)
+  (define (put-tree oport tree . args)
     (assert (textual-port? oport))
-    (for-each
-     (lambda (node)
-       (cond ((list? node)
-              (put-tree oport node))
-             ((symbol? node)
-              (put-string oport (symbol->string node)))
-             ((string? node)
-              (put-string oport node))
-             ((char? node)
-              (put-char oport node))
-             (else
-              (display node oport))))
-     tree))
-
-  (define (tree->string tree)
+    (cond ((null? tree)
+           #t)
+          ((pair? tree)
+           (begin
+             (apply put-tree oport (car tree) args)
+             (apply put-tree oport (cdr tree) args)))
+          ((symbol? tree)
+           (put-string oport (symbol->string tree)))
+          ((char? tree)
+           (put-char oport tree))
+          ((string? tree)
+           (put-string oport tree))
+          ((procedure? tree)
+           (apply put-tree oport (apply tree args) args))
+          ((number? tree)
+           (display tree oport))
+          (else
+           (error 'put-tree "invalid tree" tree))))
+  
+  (define (tree->string tree . args)
     (call-with-string-output-port
      (lambda (oport)
-       (put-tree oport tree))))
+       (apply put-tree oport tree args))))
 
 )

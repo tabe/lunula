@@ -3,8 +3,9 @@
 
 (import (rnrs)
         (lunula tree)
-        (lunula test))
+        (xunit))
 
 (assert-string=? "abcdefg123" (tree->string '("" () "a" b ((#\c "def") "g" 123) )))
+(assert-string=? "abc100%" (tree->string `(abc ,(lambda (a b) (+ a b)) "%") 20 80))
 
 (report)

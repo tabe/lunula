@@ -3,7 +3,7 @@
 
 (import (rnrs)
         (lunula mysql)
-        (lunula test))
+        (xunit))
 
 (define-record-type account
   (fields id name password)
@@ -17,16 +17,19 @@
 (connect "localhost" "root" "yoursql" "errata")
 
 (let ((x (save a)))
-  (assert (eq? #t x)))
+  (assert-boolean=? #t x))
 (let ((x (lookup account 101)))
   (assert (account? x))
-  (assert (= 101 (account-id x)))
+  (assert-= 101 (account-id x))
   (assert-string=? "lol" (account-name x))
   (assert-string=? "________" (account-password x)))
 (let ((x (destroy a)))
-  (assert (= 1 x)))
+  (assert-= 1 x))
 (let ((x (destroy a)))
-  (assert (= 0 x)))
+  (assert-= 0 x))
+
+(write (lookup-all account '()))
+(newline)
 
 (close)
 

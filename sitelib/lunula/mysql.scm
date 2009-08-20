@@ -4,13 +4,15 @@
           connect
           destroy
           lookup
+          lookup-all
           save)
   (import (rnrs)
           (only (srfi :1) iota)
           (only (srfi :13) string-prefix-ci?)
           (only (srfi :48) format)
           (ypsilon ffi)
-          (ypsilon mysql))
+          (ypsilon mysql)
+          (lunula string))
 
   (define NULL 0)
 
@@ -24,14 +26,26 @@
   (define (close)
     (mysql_close *mysql*))
 
+  (define (escape x)
+    (cond ((integer? x) x)
+          ((string? x)
+           (let* ((bv (string->utf8 x))
+                  (len (bytevector-length bv))
+                  (dst (make-bytevector (+ (* 2 len) 1))))
+             (mysql_real_escape_string *mysql* dst x len)
+             (utf8->string dst)))
+          (else (escape (format "~a" x)))))
+
   (define (lookup-where names table where)
     (string-append
      "SELECT "
      (fold-left (lambda (x y)
                   (if x (string-append x ", " y) y))
                 #f
-                (map symbol->string (vector->list names)))
-     (format " FROM ~a WHERE ~a" table where)))
+                (map string-underscore (map symbol->string (vector->list names))))
+     (if where
+         (format " FROM ~a WHERE ~a" table where)
+         (format " FROM ~a" table))))
 
   (define (lookup-query/id names table id)
     (lookup-where names table (format "id = '~d'" id)))
@@ -40,9 +54,10 @@
     (lookup-where names
                   table
                   (fold-left (lambda (x y)
-                               (if x
-                                   (format "~a AND ~a = '~a'" x (car y) (cadr y))
-                                   (format "~a = '~a'" (car y) (cadr y))))
+                               (let ((name (string-underscore (symbol->string (car y)))))
+                                 (if x
+                                     (format "~a AND ~a = '~a'" x name (escape (cadr y)))
+                                     (format "~a = '~a'" name (escape (cadr y))))))
                              #f
                              c)))
 
@@ -93,19 +108,48 @@
       ((_ record-name param)
        (lookup record-name param ""))))
 
+  (define-syntax lookup-all
+    (syntax-rules ()
+      ((_ record-name param rest)
+       (let* ((rtd (record-type-descriptor record-name))
+              (c (record-constructor (record-constructor-descriptor record-name)))
+              (names (record-type-field-names rtd))
+              (table (record-type-name rtd))
+              (query (string-append (lookup-query names table param) rest)))
+         (if (not (zero? (mysql_query *mysql* query)))
+             #f
+             (let ((result (mysql_store_result *mysql*)))
+               (if (zero? result)
+                   '()
+                   (dynamic-wind
+                       (lambda () #f)
+                       (lambda ()
+                         (let loop ((ls '())
+                                    (row (mysql_fetch_row result)))
+                           (cond ((zero? row)
+                                  (reverse ls))
+                                 (else
+                                  (let ((fields (row->fields names result row)))
+                                    (loop (cons (and fields (apply c fields)) ls)
+                                          (mysql_fetch_row result)))))))
+                       (lambda ()
+                         (mysql_free_result result))))))))
+      ((_ record-name param)
+       (lookup-all record-name param ""))))
+
   (define (id-of rtd record)
     (let ((id ((record-accessor rtd 0) record)))
       (if (string? id) (string->number id) id)))
 
   (define (update-query names table record)
     (let ((rtd (record-rtd record))
-          (ns (map symbol->string (cdr (vector->list names)))))
+          (ns (map string-underscore (map symbol->string (cdr (vector->list names))))))
       (string-append
        (format "UPDATE ~a SET " table)
        (fold-left (lambda (x name value)
                     (if x
-                        (format "~a, ~a = '~a'" x name value)
-                        (format "~a = '~a'" name value)))
+                        (format "~a, ~a = '~a'" x name (escape value))
+                        (format "~a = '~a'" name (escape value))))
                   #f
                   ns
                   (map (lambda (i) ((record-accessor rtd i) record)) (iota (length ns) 1)))
@@ -118,12 +162,12 @@
          (format "INSERT INTO ~a (" table)
          (fold-left (lambda (s name) (if s (string-append s ", " name) name))
                     #f
-                    (map symbol->string (proc ns)))
+                    (map string-underscore (map symbol->string (proc ns))))
          ") VALUES ("
          (fold-left (lambda (s value)
                       (if s
-                          (format "~a, '~a'" s value)
-                          (format "'~a'" value)))
+                          (format "~a, '~a'" s (escape value))
+                          (format "'~a'" (escape value))))
                     #f
                     (map (lambda (i) ((record-accessor rtd i) record)) (proc (iota (length ns)))))
          ")")))
@@ -169,16 +213,27 @@
                                 (and (zero? (mysql_query *mysql* query))
                                      (mysql_affected_rows *mysql*))))))))))
           (let ((query (insert-query rtd names table record)))
-            (and (zero? (mysql_query *mysql* query))
-                 (< 0 (mysql_affected_rows *mysql*)))))))
+            (cond ((and (zero? (mysql_query *mysql* query))
+                        (< 0 (mysql_affected_rows *mysql*)))
+                   ((record-mutator rtd 0) record (mysql_insert_id *mysql*))
+                   #t)
+                  (else
+                   #f))))))
+
+  (define (delete-query/id table id)
+    (format "DELETE FROM ~a WHERE id = '~d'" table id))
 
   (define (delete-query table record)
-    (format "DELETE FROM ~a WHERE id = '~d'" table (id-of (record-rtd record) record)))
+    (delete-query/id table (id-of (record-rtd record) record)))
 
-  (define (destroy record)
-    (let* ((table (record-type-name (record-rtd record)))
-           (query (delete-query table record)))
-      (and (zero? (mysql_query *mysql* query))
-           (mysql_affected_rows *mysql*))))
-                 
+  (define-syntax destroy
+    (syntax-rules ()
+      ((_ record)
+       (let* ((table (record-type-name (record-rtd record)))
+              (query (delete-query table record)))
+         (and (zero? (mysql_query *mysql* query))
+              (mysql_affected_rows *mysql*))))
+      ((_ record-name id)
+       (and (zero? (mysql_query *mysql* (delete-query/id 'record-name id)))
+            (mysql_affected_rows *mysql*)))))
 )

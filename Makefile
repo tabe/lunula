@@ -23,6 +23,7 @@ test:
 	$(YPSILON) tests/lunula/mod_lisp.scm
 	$(YPSILON) tests/lunula/mysql.scm
 	$(YPSILON) tests/lunula/session.scm
+	$(YPSILON) tests/lunula/string.scm
 	$(YPSILON) tests/lunula/tree.scm
 	$(YPSILON) tests/lunula/uri.scm
 	$(YPSILON) tests/lunula.scm

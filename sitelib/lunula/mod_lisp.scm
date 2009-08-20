@@ -6,7 +6,15 @@
           define-scenario
           do-login
           do-logout
-          logged-in?)
+          logged-in?
+          path-extension
+          add-input-fields
+          templates
+          static-template
+          template-environment
+          build-entry-path
+          content->alist
+          entry-paths)
   (import (core)
           (concurrent)
           (match)
@@ -19,70 +27,133 @@
           (srfi :48)
           (ypsilon socket)
           (lunula concurrent)
+          (only (lunula gettext) ___)
           (prefix (lunula html) html:)
           (lunula session)
           (lunula tree)
           (prefix (lunula uri) uri:))
 
-  (define *timeout* (* 30 1000))
+  (define *timeout* (* 5 60 1000))
 
   (define *scenario* '())
+
+  (define (entry-paths) (map car *scenario*))
 
   (define *response* (make-messenger-bag 10))
 
   (define *request* (make-messenger-bag 10))
 
+  (define path-extension (make-parameter ".html"))
+
   (define *temporary-path* (make-messenger-bag 10))
+
+  (define *input-types* (make-eq-hashtable 10))
+
+  (define-syntax add-input-fields
+    (syntax-rules ()
+      ((_ record-name args)
+       (let ((rtd (record-type-descriptor record-name)))
+         (hashtable-set! *input-types* rtd 'args)))))
+
+  (define (input-types rtd)
+    (hashtable-ref *input-types* rtd '()))
+
+  (define templates (make-parameter #f))
+
+  (define static-template (make-parameter #f))
+
+  (define *template-environment*
+    (make-parameter
+     '((except (rnrs) div)
+       (lunula html))))
+
+  (define-syntax template-environment
+    (syntax-rules ()
+      ((_ e0 e1 ...)
+       (*template-environment* '(e0 e1 ...)))))
+
+  (define-syntax eval-template
+    (syntax-rules ()
+      ((_ template)
+       (let ((forest (call-with-input-file (format "~a/~a.scm" (templates) template)
+                       (lambda (port)
+                         (unfold eof-object?
+                                 values
+                                 (lambda _ (read port))
+                                 (read port))))))
+         (eval (cons 'list forest) (apply environment (*template-environment*)))))))
 
   (define-syntax make-html
     (syntax-rules ()
-      ((_ title body ...)
-       (tree->string
-        (list
-         (html:doctype 'transitional)
-         (html:html
-          (html:head
-           (html:title title))
-          (html:body body ...)))))
-      ((_ body)
-       (tree->string
-        (list
-         (html:doctype 'transitional)
-         (html:html
-          (html:head)
-          (html:body body)))))))
+      ((_ template body ...)
+       (begin
+         (format #t "template: ~a~%" template)
+         (format #t "args: ~s%" (list body ...))
+         (newline)
+         (tree->string (eval-template template) body ...)))))
+
+  (define (input-title rtd name)
+    (___ (string->symbol (format "~a-~a" (record-type-name rtd) name))))
+
+  (define (input-field type name v)
+    (cond ((eq? 'textarea type)
+           (html:textarea ((rows 30)
+                           (cols 50)
+                           (name name))
+                          v))
+          ((symbol? type)
+           (html:input ((type type)
+                        (name name)
+                        (value v))))
+          (else (error 'input-field "invalid type" (list name type v)))))
 
   (define-syntax make-form
     (syntax-rules ()
       ((_ (record-name record) message ...)
-       (let* ((path (string-append "/" (make-uuid)))
+       (let* ((path (string-append "/" (make-uuid) (path-extension)))
               (rtd (if (record? record) (record-rtd record) (record-type-descriptor record-name)))
               (names (record-type-field-names rtd)))
          (values
           rtd
           path
-          (string-append
-           message ...
-           (format "<form action='~a' method='POST'>~%" path) ;; FIXME
-           (fold-left (lambda (s name i)
-                        (cond ((record? record)
-                               (let ((v ((record-accessor rtd i) record)))
-                                 (if (eq? 'id name)
-                                     (if (integer? v)
-                                         (format "~a<p>~a: <input type='hidden' name='~a' value='~a' /></p>~%"
-                                                 s name name v)
-                                         s)
-                                     (format "~a<p>~a: <input type='text' name='~a' value='~a' /></p>~%"
-                                             s name name v))))
-                              ((eq? 'id name)
-                               s)
-                              (else
-                               (format "~a<p>~a: <input type='text' name='~a' /></p>~%" s name name))))
-                      ""
-                      (vector->list names)
-                      (iota (vector-length names)))
-           "<input type='submit' value='submit' />\n</form>"))))))
-
+          (tree->string
+           (list
+            message ...
+            (html:form
+             ((action path)
+              (method "POST"))
+             (html:table
+              ()
+              (fold-left (lambda (s name type i)
+                           (define (row type v)
+                             (html:tr
+                              (html:th (input-title rtd name))
+                              (html:td (input-field type name v))))
+                           (if type
+                               (cond ((record? record)
+                                      (let ((v ((record-accessor rtd i) record)))
+                                        (if (eq? 'id name)
+                                            (if (integer? v)
+                                                (cons
+                                                 s
+                                                 (row 'hidden v))
+                                                s)
+                                            (cons
+                                             s
+                                             (row type v)))))
+                                     ((eq? 'id name)
+                                      s)
+                                     (else
+                                      (cons
+                                       s
+                                       (row type ""))))
+                               s))
+                         '()
+                         (vector->list names)
+                         (input-types rtd)
+                         (iota (vector-length names))))
+             (html:input ((type "submit") (value (___ 'submit))))))))))))
+  
   (define *static-path*
     '("/" "/favicon.ico"))
 
@@ -99,18 +170,8 @@
       (unless (null? content)
         (socket-send client (car content) 0))))
 
-  (define (links uuid)
-    (let ((x (fold-left (lambda (x pair)
-                          (let ((path (car pair)))
-                            (if (string? uuid)
-                                (format "~a<li><a href='~a?~a'>~a</a></li>~%" x path uuid path)
-                                (format "~a<li><a href='~a'>~a</a></li>~%" x path path))))
-                        ""
-                        *scenario*)))
-      (format "<ul>~%~a</ul>~%" x)))
-
-  (define (send-html client body uuid)
-    (let* ((html (make-html "typo" body (links uuid)))
+  (define (send-html client template uuid body)
+    (let* ((html (make-html template uuid body))
            (content (string->utf8 html)))
       (send-header&content client
                            `(("Status" . "200 OK")
@@ -120,11 +181,11 @@
 
   (define-syntax page
     (syntax-rules ()
-      ((_ (io sess) message ...)
+      ((_ (io sess) template message)
        (let ((uuid (and (session? sess) (session-uuid sess))))
-         (messenger-bag-put! *response* (recv io) `(200 ,(format "<p>~a</p>" (format message ...)) ,uuid))))
-      ((_ (io) message ...)
-       (page (io #f) message ...))))
+         (messenger-bag-put! *response* (recv io) `(200 template ,uuid ,message))))
+      ((_ (io) template message)
+       (page (io #f) template message))))
 
   (define-condition-type &malformed-key-value &condition
     make-malformed-key-value malformed-key-value?
@@ -144,7 +205,7 @@
 
   (define-syntax form
     (syntax-rules ()
-      ((_ (io sess) (record-name record) message ...)
+      ((_ (io sess) (record-name record) template message ...)
        (receive (rtd path body)
            (make-form (record-name record) message ...)
          (let ((f (future
@@ -157,7 +218,7 @@
                            (and x (cdr x))))
                        (record-type-field-names rtd)))))))
            (let ((uuid (and (session? sess) (session-uuid sess))))
-             (messenger-bag-put! *response* (recv io) `(200 ,body ,uuid)))
+             (messenger-bag-put! *response* (recv io) `(200 template ,uuid ,body)))
            (send io path)
            (let ((fields (f *timeout*)))
              (cond ((timeout-object? fields)
@@ -168,22 +229,27 @@
                     (format #t "fields: ~s~%" fields)
                     (apply (record-constructor (record-constructor-descriptor record-name))
                            (vector->list fields))))))))
-      ((_ (io sess) (record-name) messenge ...)
-       (form (io sess) (record-name #f) messenge ...))
-      ((_ (io) (record-name record) messenge ...)
-       (form (io #f) (record-name record) messenge ...))
-      ((_ (io) (record-name) messenge ...)
-       (form (io #f) (record-name #f) messenge ...))))
+      ((_ (io sess) (record-name) template messenge ...)
+       (form (io sess) (record-name #f) template messenge ...))
+      ((_ (io) (record-name record) template messenge ...)
+       (form (io #f) (record-name record) template messenge ...))
+      ((_ (io) (record-name) template messenge ...)
+       (form (io #f) (record-name #f) template messenge ...))))
 
   (define-syntax redirect
     (syntax-rules ()
+      ((_ (io sess) path)
+       (let ((p path))
+         (if (symbol? p)
+             (messenger-bag-put! *response* (recv io) `(302 ,(build-entry-path p (session-uuid sess))))
+             (messenger-bag-put! *response* (recv io) `(302 ,(string-append path "?" (session-uuid sess)))))))
       ((_ (io) path)
        (messenger-bag-put! *response* (recv io) `(302 ,path)))))
 
   (define (send-response client response)
     (match response
-      ((200 body uuid)
-       (send-html client body uuid))
+      ((200 template uuid body)
+       (send-html client template uuid body))
       ((302 url)
        (send-header&content client
                             `(("Status" . "302 Found")
@@ -191,10 +257,10 @@
 
   (define (static-handler header client)
     (let ((x (uri:parameter-of header)))
-      (send-html client "<p>asdf,fdsa<p>" x)))
+      (send-html client (static-template) x "")))
 
   (define (default-handler header client)
-    (let ((content (string->utf8 (make-html "404 Not Found"))))
+    (let ((content (string->utf8 (make-html 404))))
       (send-header&content client
                            `(("Status" . "404 Not Found")
                              ("Content-Type" . "text/html; charset=UTF-8")
@@ -290,16 +356,17 @@
               (else
                (assert (< len rest-length))
                (lp (cons rest leadings) (- rest-length len))))))
-    (assert (< 0 content-length))
-    (cond ((eof-object? prefix)
-           (lp '() content-length))
-          (else
-           (let ((len (bytevector-length prefix)))
-             (cond ((= content-length len)
-                    (utf8->string prefix))
-                   (else
-                    (assert (< len content-length))
-                    (lp (list prefix) (- content-length len))))))))
+    (cond ((< 0 content-length)
+           (cond ((eof-object? prefix)
+                  (lp '() content-length))
+                 (else
+                  (let ((len (bytevector-length prefix)))
+                    (cond ((= content-length len)
+                           (utf8->string prefix))
+                          (else
+                           (assert (< len content-length))
+                           (lp (list prefix) (- content-length len))))))))
+          (else "")))
 
   (define (start port)
     (collect-notify #t)
@@ -333,7 +400,7 @@
                                  (guard (con
                                          ((timeout-object? con)
                                           con))
-                                   (proc header)))
+                                   (proc header content)))
                                (lambda (x)
                                  (format (current-error-port) "there: ~a~&" x)))
                        (let ((response (messenger-bag-get! *response* path)))
@@ -351,12 +418,31 @@
             (socket-close client)
             (lp (socket-accept socket)))))))
 
+  (define (build-entry-path name . query)
+    (let ((path (string-append "/" (symbol->string name) (path-extension))))
+      (if (null? query)
+          path
+          (apply string-append path "?" query))))
+
   (define-syntax define-scenario
     (syntax-rules ()
+      ((_ (name io request data) e0 e1 ...)
+       (define name
+         (let ((path (build-entry-path 'name)))
+           (define (proc header content)
+             (let ((io (make-mailbox))
+                   (request header)
+                   (data content))
+               (dynamic-wind
+                   (lambda () (send io path))
+                   (lambda () e0 e1 ...)
+                   (lambda () (shutdown-mailbox io)))))
+           (set! *scenario* (cons (cons path proc) *scenario*))
+           proc)))
       ((_ (name io request) e0 e1 ...)
        (define name
-         (let ((path (string-append "/" (symbol->string 'name))))
-           (define (proc header)
+         (let ((path (build-entry-path 'name)))
+           (define (proc header content)
              (let ((io (make-mailbox))
                    (request header))
                (dynamic-wind

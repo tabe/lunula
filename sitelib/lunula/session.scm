@@ -10,8 +10,12 @@
           account?
           make-account
           account-id
+          account-id-set!
           account-name
+          account-nick
           account-password
+          account-mail-address
+          account-algorithm
           user
           user?
           user-account
@@ -28,13 +32,16 @@
     (fields (immutable ok ok?)))
 
   (define-record-type account
-    (fields id name password)
+    (fields (mutable id) nick name password mail-address algorithm)
     (protocol
      (lambda (p)
-       (lambda (x y z)
-         (p (if (string? x) (string->number x) x)
-            y
-            z)))))
+       (lambda (id nick name password mail-address algorithm)
+         (p (if (string? id) (string->number id) id)
+            nick
+            name
+            password
+            mail-address
+            "clear")))))
 
   (define-record-type user
     (fields account))
@@ -48,8 +55,12 @@
     (assert (account? a))
     (let ((uuid (make-uuid))
           (params (list (account-id a)
+                        (account-nick a)
                         (account-name a)
-                        (account-password a))))
+                        (account-password a)
+                        (account-mail-address a)
+                        (account-algorithm a)
+                        )))
       (messenger-bag-put! *logged-in* uuid params 100)
       (make-session (make-user a) uuid)))
 

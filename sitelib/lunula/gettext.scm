@@ -1,5 +1,6 @@
 (library (lunula gettext)
   (export __
+          ___
           gettext
           locale)
   (import (core) (rnrs))
@@ -12,13 +13,24 @@
       (hashtable-set! table 'ja (make-eq-hashtable))
       table))
 
-  (define locale (make-parameter *default-locale*))
+  (define *locale* (make-parameter *default-locale*))
+
+  (define-syntax locale
+    (syntax-rules ()
+      ((_ loc) (*locale* 'loc))
+      ((_) (*locale*))))
+
+  (define (___ msgid)
+    (cond ((hashtable-ref *locale-table* (locale) #f)
+           => (lambda (table)
+                (or (hashtable-ref table msgid #f)
+                    (symbol->string msgid))))
+          (else (symbol->string msgid))))
 
   (define-syntax __
     (syntax-rules ()
       ((_ msgid)
-       (let ((table (hashtable-ref *locale-table* (locale) *default-locale*)))
-         (hashtable-ref table 'msgid (symbol->string 'msgid))))))
+       (___ 'msgid))))
 
   (define-syntax gettext
     (syntax-rules ()

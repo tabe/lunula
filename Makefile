@@ -4,7 +4,9 @@ PREFIX = /usr/local
 
 YPSILON = $(PROG) --sitelib=sitelib --heap-limit=16
 
-.PHONY: install uninstall test stats
+.PHONY: check install uninstall test stats
+
+check: test
 
 install:
 	mkdir -p -m755 $(DESTDIR)$(PREFIX)/share/$(PROG)/sitelib

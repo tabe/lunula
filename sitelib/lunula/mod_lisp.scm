@@ -26,12 +26,13 @@
           (srfi :19)
           (srfi :48)
           (ypsilon socket)
+          (prefix (uri) uri:)
           (lunula concurrent)
           (only (lunula gettext) ___)
           (prefix (lunula html) html:)
           (lunula session)
           (lunula tree)
-          (prefix (lunula uri) uri:))
+          (lunula uri))
 
   (define *timeout* (* 5 60 1000))
 
@@ -196,7 +197,7 @@
      (lambda (kv)
        (match (string-tokenize kv (char-set-complement (char-set #\=)))
          ((k v)
-          (cons (string->symbol k) (uri:decode-string v)))
+          (cons (string->symbol k) (uri:decode-string v 'application/x-www-form-urlencoded)))
          ((k)
           (cons (string->symbol k) ""))
          (else
@@ -256,7 +257,7 @@
                               ("Location" . ,url))))))
 
   (define (static-handler header client)
-    (let ((x (uri:parameter-of header)))
+    (let ((x (parameter-of header)))
       (send-html client (static-template) x "")))
 
   (define (default-handler header client)
@@ -387,7 +388,7 @@
             ;;
             (display-thread-status)
             ;;
-            (let ((path (uri:path-of header)))
+            (let ((path (path-of header)))
               (cond ((static-path? path)
                      (format (current-error-port) "static: ~a~%" path)
                      (static-handler header client))

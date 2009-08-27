@@ -40,7 +40,10 @@
           th
           title
           tr
-          ul)
+          ul
+          escape
+          escape-char
+          escape-string)
   (import (except (rnrs) div))
 
   (define-syntax doctype
@@ -148,5 +151,37 @@
     table
     tbody
     tfoot)
+
+  (define *special-chars* (make-eqv-hashtable))
+
+  (define (escape iport oport)
+    (assert (textual-port? iport))
+    (assert (textual-port? oport))
+    (let loop ((c (get-char iport)))
+      (cond ((eof-object? c)
+             #t)
+            ((hashtable-ref *special-chars* c #f)
+             => (lambda (e)
+                  (put-string oport e)
+                  (loop (get-char iport))))
+            (else
+             (put-char oport c)
+             (loop (get-char iport))))))
+
+  (define (escape-char c)
+    (hashtable-ref *special-chars* c c))
+
+  (define (escape-string str)
+    (call-with-port (open-string-input-port str)
+      (lambda (iport)
+        (call-with-string-output-port
+         (lambda (oport)
+           (escape iport oport))))))
+
+  (for-each
+   (lambda (k v)
+     (hashtable-set! *special-chars* k v))
+   '(#\& #\" #\' #\< #\>)
+   '("&amp;" "&quot;" "&#039;" "&lt;" "&gt;"))
 
 )

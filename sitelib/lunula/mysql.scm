@@ -66,6 +66,8 @@
            (lookup-query/id names table param))
           ((list? param)
            (lookup-query/list names table param))
+          ((string? param)
+           (lookup-where names table param))
           (else
            (raise param))))
 
@@ -96,15 +98,11 @@
              (let ((result (mysql_store_result *mysql*)))
                (if (zero? result)
                    #f
-                   (dynamic-wind
-                       (lambda () #f)
-                       (lambda ()
-                         (let ((row (mysql_fetch_row result)))
-                           (and (not (zero? row))
-                                (let ((fields (row->fields names result row)))
-                                  (and fields (apply c fields))))))
-                       (lambda ()
-                         (mysql_free_result result))))))))
+                   (let ((row (mysql_fetch_row result)))
+                     (and (not (zero? row))
+                          (let ((fields (row->fields names result row)))
+                            (mysql_free_result result)
+                            (and fields (apply c fields))))))))))
       ((_ record-name param)
        (lookup record-name param ""))))
 
@@ -121,19 +119,15 @@
              (let ((result (mysql_store_result *mysql*)))
                (if (zero? result)
                    '()
-                   (dynamic-wind
-                       (lambda () #f)
-                       (lambda ()
-                         (let loop ((ls '())
-                                    (row (mysql_fetch_row result)))
-                           (cond ((zero? row)
-                                  (reverse ls))
-                                 (else
-                                  (let ((fields (row->fields names result row)))
-                                    (loop (cons (and fields (apply c fields)) ls)
-                                          (mysql_fetch_row result)))))))
-                       (lambda ()
-                         (mysql_free_result result))))))))
+                   (let loop ((ls '())
+                              (row (mysql_fetch_row result)))
+                     (cond ((zero? row)
+                            (mysql_free_result result)
+                            (reverse ls))
+                           (else
+                            (let ((fields (row->fields names result row)))
+                              (loop (cons (and fields (apply c fields)) ls)
+                                    (mysql_fetch_row result)))))))))))
       ((_ record-name param)
        (lookup-all record-name param ""))))
 

@@ -36,9 +36,9 @@
 
   (define *timeout* (* 5 60 1000))
 
-  (define *scenario* '())
+  (define *scenario* (make-hashtable string-hash string=?))
 
-  (define (entry-paths) (map car *scenario*))
+  (define (entry-paths) (hashtable-keys *scenario*))
 
   (define *response* (make-messenger-bag 10))
 
@@ -159,8 +159,7 @@
     (member path *static-path*))
 
   (define (entry-path? path)
-    (let ((pair (assoc path *scenario*)))
-      (and pair (cdr pair))))
+    (hashtable-ref *scenario* path #f))
 
   (define (send-header&content client header . content)
     (let* ((h (fold-left (lambda (x y) (format "~a~a~%~a~%" x (car y) (cdr y))) "" header)))
@@ -443,7 +442,7 @@
                    (lambda () (send io path))
                    (lambda () e0 e1 ...)
                    (lambda () (shutdown-mailbox io)))))
-           (set! *scenario* (cons (cons path proc) *scenario*))
+           (hashtable-set! *scenario* path proc)
            proc)))
       ((_ (name io request) e0 e1 ...)
        (define name
@@ -455,7 +454,7 @@
                    (lambda () (send io path))
                    (lambda () e0 e1 ...)
                    (lambda () (shutdown-mailbox io)))))
-           (set! *scenario* (cons (cons path proc) *scenario*))
+           (hashtable-set! *scenario* path proc)
            proc)))))
 
 )

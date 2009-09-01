@@ -1,7 +1,18 @@
 #!/usr/bin/env ypsilon
 #!r6rs
 
-(import (lunula html) (xunit))
+(import (lunula html) (lunula tree) (xunit))
+
+(assert-string=? "<br />" (tree->string (br)))
+(assert-string=? "<hr />" (tree->string (hr)))
+(assert-string=? "<form method='POST'></form\n>"
+                 (tree->string (form)))
+(assert-string=? "<textarea rows='5' cols='50'></textarea\n>"
+                 (tree->string (textarea)))
+(assert-string=? "<span>abc</span\n>"
+                 (tree->string (span "abc")))
+(assert-string=? "<script type='text/javascript'>alert('hello world')</script\n>"
+                 (tree->string (script ((type "text/javascript")) "alert" #\( "'hello world'" #\))))
 
 (assert-char=? #\a (escape-char #\a))
 (assert-string=? "&amp;" (escape-char #\&))

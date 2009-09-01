@@ -44,7 +44,8 @@
           escape
           escape-char
           escape-string)
-  (import (except (rnrs) div))
+  (import (except (rnrs) div)
+          (only (srfi :1) lset-union))
 
   (define-syntax doctype
     (syntax-rules (strict transitional xhtml-1.0-strict xhtml-1.0-transitional xhtml-1.1)
@@ -59,6 +60,30 @@
       ((_ xhtml-1.1)
        "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.1//EN\"\n\t\"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd\">\n")))
 
+  (define *default-attributes* (make-eq-hashtable))
+
+  (define (alist-merge orig new)
+    (map
+     (lambda (k) (or (assq k new) (assq k orig)))
+     (lset-union eq? (map car orig) (map car new))))
+
+  (define (pair->attr kv)
+    `(#\space ,(car kv) "='" ,(cdr kv) "'"))
+
+  (define (alist->attributes alist name)
+    (map
+     pair->attr
+     (alist-merge (hashtable-ref *default-attributes* name '()) alist)))
+
+  (define (element/attributes name alist)
+    `(#\< ,name ,@(alist->attributes alist name) " />"))
+
+  (define (element/attributes/ name alist)
+    `(#\< ,name ,@(alist->attributes alist name) "></" ,name "\n>"))
+
+  (define (element/attributes/nodes name alist . nodes)
+    `(#\< ,name ,@(alist->attributes alist name) #\> ,@nodes "</" ,name "\n>"))
+
   (define-syntax define-element
     (syntax-rules ()
       ((_ name ...)
@@ -66,21 +91,13 @@
          (define-syntax name
            (syntax-rules ()
              ((_)
-              `(#\< name " />"))
+              (element/attributes 'name '()))
              ((_ ((k v) (... ...)))
-              `(#\< name
-                (#\space k "='" ,v "'") (... ...)
-                " />"))
+              (element/attributes 'name `((k . ,v) (... ...))))
              ((_ ((k v) (... ...)) e0 (... ...))
-              `(#\< name
-                (#\space k "='" ,v "'") (... ...)
-                #\>
-                ,e0 (... ...)
-                "</" name "\n>"))
+              (element/attributes/nodes 'name `((k . ,v) (... ...)) e0 (... ...)))
              ((_ e0 (... ...))
-              `(#\< name #\>
-                ,e0 (... ...)
-                "</" name "\n>"))))
+              (element/attributes/nodes 'name '() e0 (... ...)))))
          ...))))
 
   (define-syntax define-element/
@@ -90,21 +107,13 @@
          (define-syntax name
            (syntax-rules ()
              ((_)
-              `(#\< name "></" name "\n>"))
+              (element/attributes/nodes 'name '()))
              ((_ ((k v) (... ...)))
-              `(#\< name
-                (#\space k "='" ,v "'") (... ...)
-                "></" name "\n>"))
+              (element/attributes/ 'name `((k . ,v) (... ...))))
              ((_ ((k v) (... ...)) e0 (... ...))
-              `(#\< name
-                (#\space k "='" ,v "'") (... ...)
-                #\>
-                ,e0 (... ...)
-                "</" name "\n>"))
+              (element/attributes/nodes 'name `((k . ,v) (... ...)) e0 (... ...)))
              ((_ e0 (... ...))
-              `(#\< name #\>
-                ,e0 (... ...)
-                "</" name "\n>"))))
+              (element/attributes/nodes 'name '() e0 (... ...)))))
          ...))))
 
   (define-element
@@ -118,7 +127,6 @@
     dl
     dt
     em
-    form
     h1
     h2
     h3
@@ -146,6 +154,7 @@
     ul)
 
   (define-element/
+    form
     script
     textarea
     table
@@ -177,6 +186,14 @@
         (call-with-string-output-port
          (lambda (oport)
            (escape iport oport))))))
+
+  (for-each
+   (lambda (k v)
+     (hashtable-set! *default-attributes* k v))
+   '(form
+     textarea)
+   '(((method . "POST"))
+     ((rows . 5) (cols . 50))))
 
   (for-each
    (lambda (k v)

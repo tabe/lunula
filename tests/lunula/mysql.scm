@@ -3,6 +3,7 @@
 
 (import (rnrs)
         (lunula mysql)
+        (prefix (only (lunula log) info) log:)
         (xunit))
 
 (define-record-type account
@@ -28,8 +29,7 @@
 (let ((x (destroy a)))
   (assert-= 0 x))
 
-(write (lookup-all account '()))
-(newline)
+(log:info "~s" (lookup-all account '()))
 
 (close)
 

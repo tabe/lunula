@@ -12,7 +12,8 @@
           (only (srfi :48) format)
           (ypsilon ffi)
           (ypsilon mysql)
-          (lunula string))
+          (lunula string)
+          (prefix (only (lunula log) info) log:))
 
   (define NULL 0)
 
@@ -85,6 +86,13 @@
                                (utf8->string (make-bytevector-mapping f (c-unsigned-int-ref (+ lengths (* i sizeof:int))))))))
                    (lp (+ i 1) (cons v fields))))))))
 
+  (define-syntax execute
+    (syntax-rules ()
+      ((_ query)
+       (begin
+         (log:info "MySQL> ~a" query)
+         (mysql_query *mysql* query)))))
+
   (define-syntax lookup
     (syntax-rules ()
       ((_ record-name param rest)
@@ -93,7 +101,7 @@
               (names (record-type-field-names rtd))
               (table (record-type-name rtd))
               (query (string-append (lookup-query names table param) rest)))
-         (if (not (zero? (mysql_query *mysql* query)))
+         (if (not (zero? (execute query)))
              #f
              (let ((result (mysql_store_result *mysql*)))
                (if (zero? result)
@@ -114,7 +122,7 @@
               (names (record-type-field-names rtd))
               (table (record-type-name rtd))
               (query (string-append (lookup-query names table param) rest)))
-         (if (not (zero? (mysql_query *mysql* query)))
+         (if (not (zero? (execute query)))
              #f
              (let ((result (mysql_store_result *mysql*)))
                (if (zero? result)
@@ -177,7 +185,7 @@
            (id (id-of rtd record)))
       (if (integer? id)
           (let ((query (string-append (lookup-query names table id) " FOR UPDATE")))
-            (and (zero? (mysql_query *mysql* query))
+            (and (zero? (execute query))
                  (let ((result (mysql_store_result *mysql*)))
                    (if (zero? result)
                        #f
@@ -201,13 +209,13 @@
                                   (lambda ()
                                     (mysql_free_result result)))
                               (let ((query (insert-query rtd names table record)))
-                                (and (zero? (mysql_query *mysql* query))
+                                (and (zero? (execute query))
                                      (< 0 (mysql_affected_rows *mysql*))))
                               (let ((query (update-query names table record)))
-                                (and (zero? (mysql_query *mysql* query))
+                                (and (zero? (execute query))
                                      (mysql_affected_rows *mysql*))))))))))
           (let ((query (insert-query rtd names table record)))
-            (cond ((and (zero? (mysql_query *mysql* query))
+            (cond ((and (zero? (execute query))
                         (< 0 (mysql_affected_rows *mysql*)))
                    ((record-mutator rtd 0) record (mysql_insert_id *mysql*))
                    #t)
@@ -225,9 +233,9 @@
       ((_ record)
        (let* ((table (record-type-name (record-rtd record)))
               (query (delete-query table record)))
-         (and (zero? (mysql_query *mysql* query))
+         (and (zero? (execute query))
               (mysql_affected_rows *mysql*))))
       ((_ record-name id)
-       (and (zero? (mysql_query *mysql* (delete-query/id 'record-name id)))
+       (and (zero? (execute (delete-query/id 'record-name id)))
             (mysql_affected_rows *mysql*)))))
 )

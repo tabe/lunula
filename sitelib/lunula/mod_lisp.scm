@@ -98,10 +98,7 @@
 
   (define (input-field type name v)
     (cond ((eq? 'textarea type)
-           (html:textarea ((rows 30)
-                           (cols 50)
-                           (name name))
-                          v))
+           (html:textarea ((name name)) v))
           ((symbol? type)
            (html:input ((type type)
                         (name name)
@@ -240,12 +237,17 @@
   (define-syntax redirect
     (syntax-rules ()
       ((_ (io sess) path)
-       (let ((p path))
-         (if (symbol? p)
-             (messenger-bag-put! *response* (recv io) `(302 ,(build-entry-path p (session-uuid sess))))
-             (messenger-bag-put! *response* (recv io) `(302 ,(string-append path "?" (session-uuid sess)))))))
+       (let* ((p path)
+              (x (cond ((session? sess)
+                        (if (symbol? p)
+                            (build-entry-path p (session-uuid sess))
+                            (string-append path "?" (session-uuid sess))))
+                       ((symbol? p)
+                        (build-entry-path p))
+                       (else p))))
+         (messenger-bag-put! *response* (recv io) `(302 ,x))))
       ((_ (io) path)
-       (messenger-bag-put! *response* (recv io) `(302 ,path)))))
+       (redirect (io #f) path))))
 
   (define (send-response client response)
     (match response
@@ -421,9 +423,12 @@
 
   (define (build-entry-path name . query)
     (let ((path (string-append "/" (symbol->string name) (path-extension))))
-      (if (null? query)
-          path
-          (apply string-append path "?" query))))
+      (cond ((null? query)
+             path)
+            ((not (car query))
+             path)
+            (else
+             (apply string-append path "?" query)))))
 
   (define-syntax define-scenario
     (syntax-rules ()

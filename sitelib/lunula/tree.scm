@@ -17,10 +17,14 @@
            (put-char oport tree))
           ((string? tree)
            (put-string oport tree))
-          ((procedure? tree)
-           (apply put-tree oport (apply tree args) args))
           ((number? tree)
            (display tree oport))
+          ((vector? tree)
+           (vector-for-each
+            (lambda (x) (apply put-tree oport x args))
+            tree))
+          ((procedure? tree)
+           (apply put-tree oport (apply tree args) args))
           (else
            (error 'put-tree "invalid tree" tree))))
   

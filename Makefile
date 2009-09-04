@@ -29,6 +29,7 @@ test:
 	$(YPSILON) tests/lunula/string.scm
 	$(YPSILON) tests/lunula/tree.scm
 	$(YPSILON) tests/lunula/uri.scm
+	$(YPSILON) tests/lunula/validation.scm
 	$(YPSILON) tests/lunula.scm
 
 stats:

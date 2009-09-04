@@ -91,7 +91,9 @@
       ((_ query)
        (begin
          (log:info "MySQL> ~a" query)
-         (mysql_query *mysql* query)))))
+         (let ((r (mysql_query *mysql* query)))
+           (unless (zero? r) (log:info "MySQL! ~a" (mysql_error *mysql*)))
+           r)))))
 
   (define-syntax lookup
     (syntax-rules ()

@@ -161,11 +161,11 @@
         (string-append
          (format "INSERT INTO ~a (" table)
          (fold-left (lambda (s name) (string-append s ", " name))
-                    "created_at"
+                    "created_at, updated_at"
                     (map string-underscore (map symbol->string (proc ns))))
          ") VALUES ("
          (fold-left (lambda (s value) (format "~a, '~a'" s (escape value)))
-                    "current_timestamp()"
+                    "current_timestamp(), current_timestamp()"
                     (map (lambda (i) ((record-accessor rtd i) record)) (proc (iota (length ns)))))
          ")")))
     (cond ((integer? (id-of rtd record))

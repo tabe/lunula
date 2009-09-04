@@ -149,10 +149,8 @@
       (string-append
        (format "UPDATE ~a SET " table)
        (fold-left (lambda (x name value)
-                    (if x
-                        (format "~a, ~a = '~a'" x name (escape value))
-                        (format "~a = '~a'" name (escape value))))
-                  #f
+                    (format "~a, ~a = '~a'" x name (escape value)))
+                  "updated_at = current_timestamp()"
                   ns
                   (map (lambda (i) ((record-accessor rtd i) record)) (iota (length ns) 1)))
        (format " WHERE id = '~d'" (id-of rtd record)))))
@@ -162,15 +160,12 @@
       (let ((ns (vector->list names)))
         (string-append
          (format "INSERT INTO ~a (" table)
-         (fold-left (lambda (s name) (if s (string-append s ", " name) name))
-                    #f
+         (fold-left (lambda (s name) (string-append s ", " name))
+                    "created_at"
                     (map string-underscore (map symbol->string (proc ns))))
          ") VALUES ("
-         (fold-left (lambda (s value)
-                      (if s
-                          (format "~a, '~a'" s (escape value))
-                          (format "'~a'" (escape value))))
-                    #f
+         (fold-left (lambda (s value) (format "~a, '~a'" s (escape value)))
+                    "current_timestamp()"
                     (map (lambda (i) ((record-accessor rtd i) record)) (proc (iota (length ns)))))
          ")")))
     (cond ((integer? (id-of rtd record))

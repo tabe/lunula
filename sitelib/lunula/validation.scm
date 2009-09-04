@@ -1,8 +1,11 @@
 (library (lunula validation)
   (export define-validator
           define-composite-validator
-          guide)
-  (import (rnrs))
+          guide
+          hashtable->messages)
+  (import (rnrs)
+          (only (lunula gettext) ___)
+          (prefix (lunula html) html:))
 
   (define-syntax define-validator
     (syntax-rules ()
@@ -38,5 +41,8 @@
                     (apply follow-up r))
                    (else
                     (guidance ht)))))))))
+
+  (define (hashtable->messages ht)
+    (html:ul (vector-map (lambda (k) (html:li (___ k))) (hashtable-keys ht))))
 
 )

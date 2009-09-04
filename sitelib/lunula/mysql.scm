@@ -13,7 +13,8 @@
           (ypsilon ffi)
           (ypsilon mysql)
           (lunula string)
-          (prefix (only (lunula log) info) log:))
+          (prefix (only (lunula log) info) log:)
+          (except (lunula persistent-record) define-persistent-record-type))
 
   (define NULL 0)
 
@@ -40,9 +41,8 @@
   (define (lookup-where names table where)
     (string-append
      "SELECT "
-     (fold-left (lambda (x y)
-                  (if x (string-append x ", " y) y))
-                #f
+     (fold-left (lambda (x y) (string-append x ", " y))
+                "id, created_at, updated_at"
                 (map string-underscore (map symbol->string (vector->list names))))
      (if where
          (format " FROM ~a WHERE ~a" table where)
@@ -75,7 +75,7 @@
   (define (row->fields names result row)
     (let ((num (mysql_num_fields result))
           (lengths (mysql_fetch_lengths result)))
-      (and (= num (vector-length names))
+      (and (= num (+ 3 (vector-length names)))
            (let lp ((i 0)
                     (fields '()))
              (if (= i num)
@@ -95,6 +95,13 @@
            (unless (zero? r) (log:info "MySQL! ~a" (mysql_error *mysql*)))
            r)))))
 
+  (define (fields->persistent-record constructor fields)
+    (let ((record (apply constructor (cdddr fields))))
+      (id-set! record (string->id (car fields)))
+      (created-at-set! record (cadr fields))
+      (updated-at-set! record (caddr fields))
+      record))
+
   (define-syntax lookup
     (syntax-rules ()
       ((_ record-name param rest)
@@ -112,7 +119,8 @@
                      (and (not (zero? row))
                           (let ((fields (row->fields names result row)))
                             (mysql_free_result result)
-                            (and fields (apply c fields))))))))))
+                            (and fields
+                                 (fields->persistent-record c fields))))))))))
       ((_ record-name param)
        (lookup record-name param ""))))
 
@@ -136,14 +144,10 @@
                             (reverse ls))
                            (else
                             (let ((fields (row->fields names result row)))
-                              (loop (cons (and fields (apply c fields)) ls)
+                              (loop (cons (and fields (fields->persistent-record c fields)) ls)
                                     (mysql_fetch_row result)))))))))))
       ((_ record-name param)
        (lookup-all record-name param ""))))
-
-  (define (id-of rtd record)
-    (let ((id ((record-accessor rtd 0) record)))
-      (if (string? id) (string->number id) id)))
 
   (define (update-query names table record)
     (let ((rtd (record-rtd record))
@@ -154,32 +158,27 @@
                     (format "~a, ~a = '~a'" x name (escape value)))
                   "updated_at = current_timestamp()"
                   ns
-                  (map (lambda (i) ((record-accessor rtd i) record)) (iota (length ns) 1)))
-       (format " WHERE id = '~d'" (id-of rtd record)))))
+                  (map (lambda (i) ((record-accessor rtd i) record)) (iota (length ns))))
+       (format " WHERE id = '~d'" (id-of record)))))
 
   (define (insert-query rtd names table record)
-    (define (%insert-query% proc)
-      (let ((ns (vector->list names)))
-        (string-append
-         (format "INSERT INTO ~a (" table)
-         (fold-left (lambda (s name) (string-append s ", " name))
-                    "created_at, updated_at"
-                    (map string-underscore (map symbol->string (proc ns))))
-         ") VALUES ("
-         (fold-left (lambda (s value) (format "~a, '~a'" s (escape value)))
-                    "current_timestamp(), current_timestamp()"
-                    (map (lambda (i) ((record-accessor rtd i) record)) (proc (iota (length ns)))))
-         ")")))
-    (cond ((integer? (id-of rtd record))
-           (%insert-query% values))
-          (else
-           (%insert-query% cdr))))
+    (let ((ns (vector->list names)))
+      (string-append
+       (format "INSERT INTO ~a (" table)
+       (fold-left (lambda (s name) (string-append s ", " name))
+                  "created_at, updated_at"
+                  (map string-underscore (map symbol->string ns)))
+       ") VALUES ("
+       (fold-left (lambda (s value) (format "~a, '~a'" s (escape value)))
+                  "current_timestamp(), current_timestamp()"
+                  (map (lambda (i) ((record-accessor rtd i) record)) (iota (length ns))))
+       ")")))
 
   (define (save record)
     (let* ((rtd (record-rtd record))
            (names (record-type-field-names rtd))
            (table (record-type-name rtd))
-           (id (id-of rtd record)))
+           (id (id-of record)))
       (if (integer? id)
           (let ((query (string-append (lookup-query names table id) " FOR UPDATE")))
             (and (zero? (execute query))
@@ -197,9 +196,9 @@
                                             (cond ((list? fields)
                                                    (and (for-all
                                                          equal?
-                                                         (cdr fields)
+                                                         (cdddr fields)
                                                          (map (lambda (i) ((record-accessor rtd i) record))
-                                                              (iota (- (vector-length names) 1) 1)))
+                                                              (iota (vector-length names))))
                                                         (cont 0)))
                                                   (else
                                                    (cont #f)))))))
@@ -214,7 +213,7 @@
           (let ((query (insert-query rtd names table record)))
             (cond ((and (zero? (execute query))
                         (< 0 (mysql_affected_rows *mysql*)))
-                   ((record-mutator rtd 0) record (mysql_insert_id *mysql*))
+                   (id-set! record (mysql_insert_id *mysql*))
                    #t)
                   (else
                    #f))))))
@@ -223,7 +222,7 @@
     (format "DELETE FROM ~a WHERE id = '~d'" table id))
 
   (define (delete-query table record)
-    (delete-query/id table (id-of (record-rtd record) record)))
+    (delete-query/id table (id-of record)))
 
   (define-syntax destroy
     (syntax-rules ()

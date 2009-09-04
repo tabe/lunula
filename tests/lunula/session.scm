@@ -2,10 +2,12 @@
 #!r6rs
 
 (import (rnrs)
+        (only (lunula persistent-record) id-set!)
         (lunula session)
         (xunit))
 
-(define a (make-account "123" "foo" "bazbazbaz" "password" "mail-address" "algorithm"))
+(define a (make-account "foo" "bazbazbaz" "password" "mail-address" "algorithm"))
+(id-set! a 123)
 
 (assert (not (logged-in? #f)))
 (assert (not (logged-in? "bad")))

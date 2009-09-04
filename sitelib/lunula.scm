@@ -20,8 +20,6 @@
           account
           account?
           make-account
-          account-id
-          account-id-set!
           account-nick
           account-name
           account-password

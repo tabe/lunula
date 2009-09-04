@@ -9,8 +9,6 @@
           account
           account?
           make-account
-          account-id
-          account-id-set!
           account-name
           account-nick
           account-password
@@ -26,22 +24,23 @@
   (import (rnrs)
           (core)
           (concurrent)
-          (lunula concurrent))
+          (lunula concurrent)
+          (lunula persistent-record))
 
   (define-record-type confirmation
     (fields (immutable ok ok?)))
 
-  (define-record-type account
-    (fields (mutable id) nick name password mail-address algorithm)
+  (define-persistent-record-type account
+    (fields nick name password mail-address algorithm)
     (protocol
-     (lambda (p)
-       (lambda (id nick name password mail-address algorithm)
-         (p (if (string? id) (string->number id) id)
-            nick
+     (persistent-protocol
+      (lambda (p)
+       (lambda (nick name password mail-address algorithm)
+         (p nick
             name
             password
             mail-address
-            "clear")))))
+            "clear"))))))
 
   (define-record-type user
     (fields account))
@@ -54,7 +53,7 @@
   (define (generate-session a)
     (assert (account? a))
     (let ((uuid (make-uuid))
-          (params (list (account-id a)
+          (params (list (id-of a)
                         (account-nick a)
                         (account-name a)
                         (account-password a)
@@ -76,6 +75,8 @@
     (and (string? x)
          (let ((params (messenger-bag-get-gracefully! *logged-in* x 100 #f)))
            (and (list? params)
-                (generate-session (apply make-account params))))))
+                (let ((a (apply make-account (cdr params))))
+                  (id-set! a (car params))
+                  (generate-session a))))))
 
 )

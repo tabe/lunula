@@ -3,25 +3,27 @@
 
 (import (rnrs)
         (lunula mysql)
+        (only (lunula persistent-record) define-persistent-record-type persistent-protocol id-of)
         (prefix (only (lunula log) info) log:)
         (xunit))
 
-(define-record-type account
-  (fields id name password)
+(define-persistent-record-type account
+  (fields name password)
   (protocol
-   (lambda (p)
-     (lambda (x y z)
-       (p (if (string? x) (string->number x) x) y z)))))
+   (persistent-protocol
+    (lambda (p)
+      (lambda (x y)
+        (p x y))))))
 
-(define a (make-account 101 "lol" "________"))
+(define a (make-account "lol" "________"))
 
 (connect "localhost" "root" "yoursql" "errata")
 
 (let ((x (save a)))
   (assert-boolean=? #t x))
-(let ((x (lookup account 101)))
+(let ((x (lookup account (id-of a))))
   (assert (account? x))
-  (assert-= 101 (account-id x))
+  (assert-= (id-of a) (id-of x))
   (assert-string=? "lol" (account-name x))
   (assert-string=? "________" (account-password x)))
 (let ((x (destroy a)))

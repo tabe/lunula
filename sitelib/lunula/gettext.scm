@@ -3,7 +3,8 @@
           ___
           gettext
           locale)
-  (import (core) (rnrs))
+  (import (only (core) make-parameter)
+          (rnrs))
 
   (define *default-locale* 'en)
 

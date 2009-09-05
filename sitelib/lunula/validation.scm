@@ -20,13 +20,13 @@
 
   (define-syntax define-composite-validator
     (syntax-rules ()
-      ((_ name (extractor sub ...) ...)
+      ((_ name (extractor validator ...) ...)
        (define (name ht)
          (lambda args
            (call-with-values
                (lambda () (apply extractor args))
              (lambda params
-               (apply (sub ht) params)
+               (apply (validator ht) params)
                ...))
            ...)))))
 

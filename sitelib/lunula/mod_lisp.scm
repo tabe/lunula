@@ -30,6 +30,7 @@
           (lunula concurrent)
           (only (lunula gettext) ___)
           (prefix (lunula html) html:)
+          (prefix (lunula log) log:)
           (lunula session)
           (lunula tree)
           (lunula uri))
@@ -150,7 +151,8 @@
                          (vector->list names)
                          (input-types rtd)
                          (iota (vector-length names))))
-             (html:input ((type "submit") (value (___ 'submit))))))))))))
+             (html:input ((type "submit") (value (___ 'submit))))))
+           path))))))
   
   (define *static-path*
     '("/" "/favicon.ico"))
@@ -211,8 +213,8 @@
                      ((header content)
                       (vector-map
                        (lambda (name)
-                         (let ((x (assoc name (content->alist content))))
-                           (and x (cdr x))))
+                         (cond ((assoc name (content->alist content)) => cdr)
+                               (else #f)))
                        (record-type-field-names rtd)))))))
            (let ((uuid (and (session? sess) (session-uuid sess))))
              (messenger-bag-put! *response* (recv io) `(200 template ,uuid ,body)))
@@ -400,6 +402,9 @@
                        (spawn* (lambda ()
                                  (display "here\n" (current-error-port))
                                  (guard (con
+                                         ((message-condition? con)
+                                          (log:info "lunula> ~a" (condition-message con))
+                                          con)
                                          ((timeout-object? con)
                                           con))
                                    (proc header content)))

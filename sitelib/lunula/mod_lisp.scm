@@ -101,9 +101,9 @@
     (cond ((eq? 'textarea type)
            (html:textarea ((name name)) v))
           ((symbol? type)
-           (html:input ((type type)
-                        (name name)
-                        (value v))))
+           (case type
+             ((password) (html:input ((type type) (name name))))
+             (else (html:input ((type type) (name name) (value v))))))
           (else (error 'input-field "invalid type" (list name type v)))))
 
   (define-syntax make-form

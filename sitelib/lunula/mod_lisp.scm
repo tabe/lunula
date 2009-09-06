@@ -119,8 +119,7 @@
            (list
             message ...
             (html:form
-             ((action path)
-              (method "POST"))
+             ((action path))
              (html:table
               ()
               (fold-left (lambda (s name type i)

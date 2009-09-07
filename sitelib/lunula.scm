@@ -17,14 +17,6 @@
           session-uuid
           confirmation
           ok?
-          account
-          account?
-          make-account
-          account-nick
-          account-name
-          account-password
-          account-mail-address
-          account-algorithm
           user
           user?
           user-account

@@ -9,11 +9,12 @@
           account
           account?
           make-account
-          account-name
           account-nick
+          account-name
           account-password
           account-mail-address
-          account-algorithm
+          account-hash-algorithm
+          account-hash-key
           user
           user?
           user-account
@@ -31,16 +32,17 @@
     (fields (immutable ok ok?)))
 
   (define-persistent-record-type account
-    (fields nick name password mail-address algorithm)
+    (fields nick name password mail-address hash-algorithm hash-key)
     (protocol
      (persistent-protocol
       (lambda (p)
-       (lambda (nick name password mail-address algorithm)
+       (lambda (nick name password mail-address hash-algorithm hash-key)
          (p nick
             name
             password
             mail-address
-            "clear"))))))
+            hash-algorithm
+            hash-key))))))
 
   (define-record-type user
     (fields account))
@@ -58,7 +60,8 @@
                         (account-name a)
                         (account-password a)
                         (account-mail-address a)
-                        (account-algorithm a)
+                        (account-hash-algorithm a)
+                        (account-hash-key a)
                         )))
       (messenger-bag-put! *logged-in* uuid params 100)
       (make-session (make-user a) uuid)))

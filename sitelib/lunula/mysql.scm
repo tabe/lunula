@@ -151,7 +151,7 @@
 
   (define (update-query names table record)
     (let ((rtd (record-rtd record))
-          (ns (map string-underscore (map symbol->string (cdr (vector->list names))))))
+          (ns (map string-underscore (map symbol->string (vector->list names)))))
       (string-append
        (format "UPDATE ~a SET " table)
        (fold-left (lambda (x name value)

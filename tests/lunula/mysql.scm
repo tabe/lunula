@@ -7,31 +7,38 @@
         (prefix (only (lunula log) info) log:)
         (xunit))
 
-(define-persistent-record-type account
-  (fields name password)
+(define-persistent-record-type foobar
+  (fields name (mutable memo))
   (protocol
    (persistent-protocol
     (lambda (p)
       (lambda (x y)
         (p x y))))))
 
-(define a (make-account "lol" "________"))
+(define-syntax foobar-is
+  (syntax-rules ()
+    ((_ id name memo)
+     (let ((x (lookup foobar id)))
+       (assert-boolean=? #t (foobar? x))
+       (assert-= id (id-of a))
+       (assert-string=? name (foobar-name x))
+       (assert-string=? memo (foobar-memo x))))))
+
+(define a (make-foobar "lol" "________"))
 
 (connect "localhost" "root" "yoursql" "errata")
 
-(let ((x (save a)))
-  (assert-boolean=? #t x))
-(let ((x (lookup account (id-of a))))
-  (assert (account? x))
-  (assert-= (id-of a) (id-of x))
-  (assert-string=? "lol" (account-name x))
-  (assert-string=? "________" (account-password x)))
+(assert-boolean=? #t (save a))
+(foobar-is (id-of a) "lol" "________")
+(foobar-memo-set! a "let me see ...")
+(assert-= 1 (save a))
+(foobar-is (id-of a) "lol" "let me see ...")
 (let ((x (destroy a)))
   (assert-= 1 x))
 (let ((x (destroy a)))
   (assert-= 0 x))
 
-(log:info "~s" (lookup-all account '()))
+(log:info "~s" (lookup-all foobar '()))
 
 (close)
 

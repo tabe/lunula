@@ -2,6 +2,7 @@
   (export start
           page
           form
+          mail
           redirect
           close
           connect

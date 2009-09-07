@@ -1,6 +1,7 @@
 (library (lunula mod_lisp)
   (export page
           form
+          mail
           redirect
           start
           define-scenario
@@ -31,6 +32,7 @@
           (only (lunula gettext) ___)
           (prefix (lunula html) html:)
           (prefix (lunula log) log:)
+          (lunula sendmail)
           (lunula session)
           (lunula tree)
           (lunula uri))
@@ -266,6 +268,29 @@
        (form (io #f) (record-name record) template messenge ...))
       ((_ (io) (record-name) template messenge ...)
        (form (io #f) (record-name #f) template messenge ...))))
+
+  (define-syntax mail
+    (syntax-rules ()
+      ((_ (io sess) template message composer)
+       (let* ((path (string-append "/" (make-uuid) (path-extension)))
+              (f (future
+                  (cond ((zero? (call-with-values (lambda () (composer path)) sendmail))
+                         (messenger-bag-put! *temporary-path* path #t)
+                         (match (messenger-bag-get! *request* path (* 2 *timeout*))
+                           ((header content) #t)
+                           (else #f)))
+                        (else #f)))))
+         (let ((uuid (and (session? sess) (session-uuid sess))))
+           (messenger-bag-put! *response* (recv io) `(200 template ,uuid ,message)))
+         (send io path)
+         (let ((result (f *timeout*)))
+           (cond ((timeout-object? result)
+                  (messenger-bag-get-gracefully! *temporary-path* path 100)
+                  (messenger-bag-get-gracefully! *request* path 100)
+                  #f)
+                 (else result)))))
+      ((_ (io) template message composer)
+       (mail (io #f) template message composer))))
 
   (define-syntax redirect
     (syntax-rules ()

@@ -2,7 +2,9 @@ PROG = ypsilon
 
 PREFIX = /usr/local
 
-YPSILON = $(PROG) --sitelib=sitelib --heap-limit=16
+YPSILON_SITELIB = /home/tabe/base64:/home/tabe/uri:/home/tabe/xunit:/home/tabe/ypsilon-foreign-lib/sitelib
+
+YPSILON = env YPSILON_SITELIB=$(YPSILON_SITELIB) $(PROG) --sitelib=sitelib --heap-limit=16
 
 .PHONY: check install uninstall test stats
 
@@ -21,6 +23,7 @@ uninstall:
 test:
 	$(YPSILON) tests/lunula/concurrent.scm
 	$(YPSILON) tests/lunula/gettext.scm
+	$(YPSILON) tests/lunula/hmac.scm
 	$(YPSILON) tests/lunula/html.scm
 	$(YPSILON) tests/lunula/log.scm
 	$(YPSILON) tests/lunula/mod_lisp.scm

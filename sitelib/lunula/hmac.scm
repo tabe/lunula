@@ -1,0 +1,21 @@
+(library (lunula hmac)
+  (export sha-256)
+  (import (rnrs)
+          (ypsilon c-types)
+          (ypsilon gcrypt)
+          (prefix (base64) base64:))
+
+  (define (sha-256 key data)
+    (let ((hdp (make-bytevector sizeof:void*)))
+      (gcry_md_open hdp GCRY_MD_SHA256 GCRY_MD_FLAG_HMAC)
+      (let ((hd (make-bytevector-mapping (c-void*-ref hdp) sizeof:void*)))
+        (gcry_md_setkey hd (make-c-string key) (string-length key))
+        (gcry_md_write hd data (bytevector-length data))
+        (let* ((result (gcry_md_read hd 0))
+               (r (make-bytevector-mapping result 32)))
+          (dynamic-wind
+              (lambda () #f)
+              (lambda () (base64:encode-bytevector r))
+              (lambda () (gcry_md_close hd)))))))
+
+)

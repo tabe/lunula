@@ -22,6 +22,7 @@
           html
           image
           input
+          label
           li
           link
           meta

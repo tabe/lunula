@@ -1,0 +1,23 @@
+(library (lunula sendmail)
+  (export sendmail)
+  (import (only (core) format)
+          (rnrs)
+          (ypsilon process))
+
+  (define (sendmail to from subject body)
+    (call-with-values
+        (lambda () (process-spawn #f #f #f #f #f "/usr/sbin/sendmail" "-t" "-oi"))
+      (lambda (info)
+        (let ((port (cadr info)))
+          (define (put message . args)
+            (put-bytevector port (string->utf8 (apply format message args))))
+          (put "To: ~a~%" to)
+          (put "From: ~a~%" from)
+          (put "Subject: ~a~%" subject)
+          (put "Content-Type: text/plain; charset=UTF-8~%")
+          (put "~%")
+          (put "~a" body)
+          (close-port port)
+          (process-wait (car info) #f)))))
+
+)

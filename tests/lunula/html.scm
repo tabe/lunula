@@ -13,6 +13,10 @@
                  (tree->string (span "abc")))
 (assert-string=? "<script type='text/javascript'>alert('hello world')</script\n>"
                  (tree->string (script ((type "text/javascript")) "alert" #\( "'hello world'" #\))))
+(assert-string=? "<input type='radio' name='foo' value='bar' checked />"
+                 (tree->string (input ((type "radio") (name "foo") (value "bar") (checked #t)))))
+(assert-string=? "<input type='radio' name='foo' value='bar' />"
+                 (tree->string (input ((type "radio") (name "foo") (value "bar") (checked #f)))))
 
 (assert-char=? #\a (escape-char #\a))
 (assert-string=? "&amp;" (escape-char #\&))

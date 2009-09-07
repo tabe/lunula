@@ -69,7 +69,12 @@
      (lset-union eq? (map car orig) (map car new))))
 
   (define (pair->attr kv)
-    `(#\space ,(car kv) "='" ,(cdr kv) "'"))
+    (cond ((cdr kv)
+           => (lambda (v)
+                (if (boolean? v)
+                    `(#\space ,(car kv))
+                    `(#\space ,(car kv) "='" ,v "'"))))
+          (else '())))
 
   (define (alist->attributes alist name)
     (map

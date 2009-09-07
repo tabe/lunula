@@ -51,14 +51,35 @@
 
   (define *input-types* (make-eq-hashtable 10))
 
+  (define *input-descriptions* (make-eq-hashtable 10))
+
+  (define-syntax split-input-specification
+    (syntax-rules ()
+      ((_ (t d) () proc)
+       (proc (reverse t) (reverse d)))
+      ((_ (t d) (#f e ...) proc)
+       (split-input-specification ((cons #f t) (cons #f d)) (e ...) proc))
+      ((_ (t d) ((type) e ...) proc)
+       (split-input-specification ((cons 'type t) (cons #f d)) (e ...) proc))
+      ((_ (t d) ((type desc) e ...) proc)
+       (split-input-specification ((cons 'type t) (cons desc d)) (e ...) proc))))
+
   (define-syntax add-input-fields
     (syntax-rules ()
-      ((_ record-name args)
-       (let ((rtd (record-type-descriptor record-name)))
-         (hashtable-set! *input-types* rtd 'args)))))
+      ((_ record-name (e ...))
+       (split-input-specification
+        ('() '())
+        (e ...)
+        (lambda (t d)
+          (let ((rtd (record-type-descriptor record-name)))
+            (hashtable-set! *input-types* rtd t)
+            (hashtable-set! *input-descriptions* rtd d)))))))
 
   (define (input-types rtd)
     (hashtable-ref *input-types* rtd '()))
+
+  (define (input-descriptions rtd)
+    (hashtable-ref *input-descriptions* rtd '()))
 
   (define templates (make-parameter #f))
 
@@ -122,11 +143,14 @@
              ((action path))
              (html:table
               ()
-              (fold-left (lambda (s name type i)
+              (fold-left (lambda (s name type desc i)
                            (define (row type v)
                              (html:tr
                               (html:th (input-title rtd name))
-                              (html:td (input-field type name v))))
+                              (html:td (input-field type name v)
+                                       (if desc
+                                           (append (html:br) (html:span ((class "description")) desc))
+                                           '()))))
                            (if type
                                (cond ((record? record)
                                       (let ((v ((record-accessor rtd i) record)))
@@ -149,6 +173,7 @@
                          '()
                          (vector->list names)
                          (input-types rtd)
+                         (input-descriptions rtd)
                          (iota (vector-length names))))
              (html:input ((type "submit") (value (___ 'submit))))))
            path))))))

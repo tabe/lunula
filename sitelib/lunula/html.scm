@@ -155,6 +155,7 @@
 
   (define-element/
     form
+    label
     script
     textarea
     table

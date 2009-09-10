@@ -421,6 +421,10 @@
                            (lp (list prefix) (- content-length len))))))))
           (else "")))
 
+  (define (path-filter path)
+    (and (string? path)
+         (if (string=? "/" path) "/index.html" path)))
+
   (define (start port)
     (collect-notify #t)
     (spawn-heap-limit (* 6 1024 1024))
@@ -439,7 +443,7 @@
             ;;
             (display-thread-status)
             ;;
-            (let ((path (path-of header)))
+            (let ((path (path-filter (path-of header))))
               (cond ((entry-path? path)
                      =>
                      (lambda (proc)

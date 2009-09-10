@@ -222,7 +222,9 @@
        (let ((uuid (and (session? sess) (session-uuid sess))))
          (messenger-bag-put! *response* (recv io) `(200 template ,uuid ,message))))
       ((_ (io) template message)
-       (page (io #f) template message))))
+       (page (io #f) template message))
+      ((_ param template)
+       (page param template #f))))
 
   (define-condition-type &malformed-key-value &condition
     make-malformed-key-value malformed-key-value?

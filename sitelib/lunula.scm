@@ -29,7 +29,6 @@
           path-extension
           add-input-fields
           templates
-          static-template
           template-environment
           build-entry-path
           content->alist

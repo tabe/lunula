@@ -11,7 +11,6 @@
           path-extension
           add-input-fields
           templates
-          static-template
           template-environment
           build-entry-path
           content->alist
@@ -84,8 +83,6 @@
     (hashtable-ref *input-descriptions* rtd '()))
 
   (define templates (make-parameter #f))
-
-  (define static-template (make-parameter #f))
 
   (define *template-environment*
     (make-parameter
@@ -192,12 +189,6 @@
              (html:input ((type "submit") (value (___ 'submit))))))
            path))))))
   
-  (define *static-path*
-    '("/" "/favicon.ico"))
-
-  (define (static-path? path)
-    (member path *static-path*))
-
   (define (entry-path? path)
     (hashtable-ref *scenario* path #f))
 
@@ -321,10 +312,6 @@
        (send-header&content client
                             `(("Status" . "302 Found")
                               ("Location" . ,url))))))
-
-  (define (static-handler header client)
-    (let ((x (parameter-of header)))
-      (send-html client (static-template) x "")))
 
   (define (default-handler header client)
     (let ((content (string->utf8 (make-html 404))))
@@ -453,10 +440,7 @@
             (display-thread-status)
             ;;
             (let ((path (path-of header)))
-              (cond ((static-path? path)
-                     (log:info "lunula> static: ~a" path)
-                     (static-handler header client))
-                    ((entry-path? path)
+              (cond ((entry-path? path)
                      =>
                      (lambda (proc)
                        (log:info "lunula> entry: ~a" path)

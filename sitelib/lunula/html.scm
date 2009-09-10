@@ -27,10 +27,12 @@
           link
           meta
           ol
+          option
           p
           pre
           q
           script
+          select
           span
           style
           table
@@ -162,7 +164,9 @@
   (define-element/
     form
     label
+    option
     script
+    select
     textarea
     table
     tbody

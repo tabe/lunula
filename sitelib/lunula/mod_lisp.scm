@@ -128,7 +128,11 @@
                  (let ((id (make-uuid)))
                    (append (html:input ((type 'radio) (name name) (value (car x)) (id id) (checked (caddr x))))
                            (html:label ((for id)) (cadr x)))))
-               ls))))
+               ls))
+             (('select . ls)
+              (html:select
+               ((name name))
+               (map (lambda (x) (html:option ((value (car x))) (cadr x))) ls)))))
           ((eq? 'textarea type)
            (html:textarea ((name name)) v))
           ((symbol? type)

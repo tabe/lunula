@@ -155,7 +155,9 @@
       (string-append
        (format "UPDATE ~a SET " table)
        (fold-left (lambda (x name value)
-                    (format "~a, ~a = '~a'" x name (escape value)))
+                    (if value
+                        (format "~a, ~a = '~a'" x name (escape value))
+                        x))
                   "updated_at = current_timestamp()"
                   ns
                   (map (lambda (i) ((record-accessor rtd i) record)) (iota (length ns))))

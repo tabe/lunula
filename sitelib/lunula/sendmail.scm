@@ -6,7 +6,7 @@
 
   (define (sendmail to from subject body)
     (call-with-values
-        (lambda () (process-spawn #f #f #f #f #f "/usr/sbin/sendmail" "-t" "-oi"))
+        (lambda () (process-spawn #t #f #f #f #f "/usr/sbin/sendmail" "-t" "-oi"))
       (lambda (info)
         (let ((port (cadr info)))
           (define (put message . args)

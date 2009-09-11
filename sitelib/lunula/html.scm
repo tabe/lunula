@@ -20,7 +20,7 @@
           head
           hr
           html
-          image
+          img
           input
           label
           li
@@ -144,7 +144,7 @@
     head
     hr
     html
-    image
+    img
     input
     li
     link

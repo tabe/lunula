@@ -82,7 +82,7 @@
   (define (input-descriptions rtd)
     (hashtable-ref *input-descriptions* rtd '()))
 
-  (define templates (make-parameter #f))
+  (define templates (make-parameter (lookup-process-environment "LUNULA_TEMPLATES")))
 
   (define *template-environment*
     (make-parameter

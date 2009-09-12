@@ -321,7 +321,7 @@
                              ("Content-Length" . ,(bytevector-length content)))
                            content)))
 
-  (define *header-buffer-size* 1024)
+  (define *header-buffer-size* (* 32 1024))
 
   (define-condition-type &premature-end-of-header &condition
     make-premature-end-of-header premature-end-of-header?)
@@ -350,23 +350,30 @@
                     (lambda (x) (binary-get-line port))
                     (binary-get-line port))))
 
+  (define-condition-type &too-big-header &condition
+    make-too-big-header too-big-header?
+    (data too-big-header-data-of))
+
   (define (receive-header client)
     (let ((data (socket-recv client *header-buffer-size* 0)))
       (let lp ((data data)
                (dlen (bytevector-length data)))
         (guard (con
                 ((premature-end-of-header? con)
-                 (let ((next (socket-recv client (- *header-buffer-size* dlen) 0)))
-                   (cond ((eof-object? next)
-                          (usleep 500000)
-                          (lp data dlen))
-                         (else
-                          (let* ((nlen (bytevector-length next))
-                                 (dlen+nlen (+ dlen nlen))
-                                 (bv (make-bytevector dlen+nlen)))
-                            (bytevector-copy! data 0 bv 0 dlen)
-                            (bytevector-copy! next 0 bv dlen nlen)
-                            (lp bv dlen+nlen)))))))
+                 (cond ((< dlen *header-buffer-size*)
+                        (let ((next (socket-recv client (- *header-buffer-size* dlen) 0)))
+                          (cond ((eof-object? next)
+                                 (usleep 500000)
+                                 (lp data dlen))
+                                (else
+                                 (let* ((nlen (bytevector-length next))
+                                        (dlen+nlen (+ dlen nlen))
+                                        (bv (make-bytevector dlen+nlen)))
+                                   (bytevector-copy! data 0 bv 0 dlen)
+                                   (bytevector-copy! next 0 bv dlen nlen)
+                                   (lp bv dlen+nlen))))))
+                       (else
+                        (raise (make-too-big-header data))))))
           (call-with-port (open-bytevector-input-port data)
             (lambda (port)
               (let ((header (binary-port->header port)))

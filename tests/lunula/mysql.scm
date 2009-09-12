@@ -8,7 +8,7 @@
         (xunit))
 
 (define-persistent-record-type foobar
-  (fields name (mutable memo))
+  (fields (mutable name) (mutable memo))
   (protocol
    (persistent-protocol
     (lambda (p)
@@ -30,6 +30,7 @@
 
 (assert-boolean=? #t (save a))
 (foobar-is (id-of a) "lol" "________")
+(foobar-name-set! a #f)
 (foobar-memo-set! a "let me see ...")
 (assert-= 1 (save a))
 (foobar-is (id-of a) "lol" "let me see ...")

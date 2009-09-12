@@ -149,32 +149,43 @@
       ((_ record-name param)
        (lookup-all record-name param ""))))
 
-  (define (update-query names table record)
-    (let ((rtd (record-rtd record))
-          (ns (map string-underscore (map symbol->string (vector->list names)))))
-      (string-append
-       (format "UPDATE ~a SET " table)
-       (fold-left (lambda (x name value)
-                    (if value
-                        (format "~a, ~a = '~a'" x name (escape value))
-                        x))
-                  "updated_at = current_timestamp()"
-                  ns
-                  (map (lambda (i) ((record-accessor rtd i) record)) (iota (length ns))))
-       (format " WHERE id = '~d'" (id-of record)))))
+  (define (call/pv rtd names record proc) ; call-with-proper-values
+    (let ((ns (vector->list names)))
+      (apply proc
+             (fold-left (lambda (couple name value)
+                          (if value
+                              `(,(cons (string-underscore (symbol->string name)) (car couple))
+                                ,(cons value (cadr couple)))
+                              couple))
+                        '(() ())
+                        ns
+                        (map (lambda (i) ((record-accessor rtd i) record)) (iota (length ns)))))))
+
+  (define (update-query rtd names table record)
+    (call/pv
+     rtd names record
+     (lambda (cols vals)
+       (format "UPDATE ~a SET ~a WHERE id = '~d'"
+               table
+               (fold-left (lambda (x name value)
+                            (format "~a, ~a = '~a'" x name (escape value)))
+                          "updated_at = current_timestamp()"
+                          cols
+                          vals)
+               (id-of record)))))
 
   (define (insert-query rtd names table record)
-    (let ((ns (vector->list names)))
-      (string-append
-       (format "INSERT INTO ~a (" table)
-       (fold-left (lambda (s name) (string-append s ", " name))
-                  "created_at, updated_at"
-                  (map string-underscore (map symbol->string ns)))
-       ") VALUES ("
-       (fold-left (lambda (s value) (format "~a, '~a'" s (escape value)))
-                  "current_timestamp(), current_timestamp()"
-                  (map (lambda (i) ((record-accessor rtd i) record)) (iota (length ns))))
-       ")")))
+    (call/pv
+     rtd names record
+     (lambda (cols vals)
+       (format "INSERT INTO ~a (~a) VALUES (~a)"
+               table
+               (fold-left (lambda (s name) (string-append s ", " name))
+                          "created_at, updated_at"
+                          cols)
+               (fold-left (lambda (s value) (format "~a, '~a'" s (escape value)))
+                          "current_timestamp(), current_timestamp()"
+                          vals)))))
 
   (define (save record)
     (let* ((rtd (record-rtd record))
@@ -209,7 +220,7 @@
                               (let ((query (insert-query rtd names table record)))
                                 (and (zero? (execute query))
                                      (< 0 (mysql_affected_rows *mysql*))))
-                              (let ((query (update-query names table record)))
+                              (let ((query (update-query rtd names table record)))
                                 (and (zero? (execute query))
                                      (mysql_affected_rows *mysql*))))))))))
           (let ((query (insert-query rtd names table record)))

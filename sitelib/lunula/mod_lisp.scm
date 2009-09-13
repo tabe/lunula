@@ -129,7 +129,11 @@
              (('select . ls)
               (html:select
                ((name name))
-               (map (lambda (x) (html:option ((value (car x))) (cadr x))) ls)))))
+               (map
+                (lambda (x)
+                  (let ((selected (string=? (format "~a" v) (format "~a" (car x)))))
+                    (html:option ((value (car x)) (selected selected)) (cadr x))))
+                ls)))))
           ((eq? 'textarea type)
            (html:textarea ((name name)) v))
           ((symbol? type)

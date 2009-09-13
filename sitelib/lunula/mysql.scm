@@ -7,7 +7,7 @@
           lookup-all
           save)
   (import (rnrs)
-          (only (srfi :1) iota)
+          (only (srfi :1) list-index iota)
           (only (srfi :13) string-prefix-ci?)
           (only (srfi :48) format)
           (ypsilon ffi)
@@ -102,8 +102,127 @@
       (updated-at-set! record (caddr fields))
       record))
 
+  (define (rtd->columns rtd)
+    (let ((names (record-type-field-names rtd)))
+      (cons* "id"
+             "created_at"
+             "updated_at"
+             (map (lambda (name) (string-underscore (symbol->string name))) (vector->list names)))))
+
+  (define-syntax ->t
+    (syntax-rules ()
+      ((_ record-name0 record-name1 ...)
+       (lambda (name)
+         (cond ((list-index
+                 (lambda (x) (eq? x name))
+                 '(record-name0 record-name1 ...))
+                => (lambda (i) (format "t~d" i)))
+               (else #f))))))
+
+  (define-syntax column-tuple
+    (syntax-rules ()
+      ((_ () proc)
+       '())
+      ((_ (record-name0 record-name1 ...) proc)
+       (cons (map
+              (lambda (c) (format "~a.~a" (proc 'record-name0) c))
+              (rtd->columns (record-type-descriptor record-name0)))
+             (column-tuple (record-name1 ...) proc)))))
+
+  (define (row->field-tuple c-tuple result row)
+    (let ((num (mysql_num_fields result))
+          (lengths (mysql_fetch_lengths result)))
+      (and (= num (apply + (map length c-tuple)))
+           (let ((len (length c-tuple)))
+             (let loop ((k 0)
+                        (n 0)
+                        (f-tuple '()))
+               (if (= k len)
+                   (reverse f-tuple)
+                   (let ((l (length (list-ref c-tuple k))))
+                     (let lp ((i 0)
+                              (fields '()))
+                       (if (= i l)
+                           (loop (+ k 1) (+ n i) (cons (reverse fields) f-tuple))
+                           (let* ((f (c-void*-ref (+ row (* (+ n i) sizeof:void*))))
+                                  (v (if (zero? f)
+                                         #f
+                                         (utf8->string (make-bytevector-mapping f (c-unsigned-int-ref (+ lengths (* (+ n i) sizeof:int))))))))
+                             (lp (+ i 1) (cons v fields))))))))))))
+
+  (define-syntax field-tuple->persistent-record-tuple
+    (syntax-rules ()
+      ((_ (record-name0 record-name1 ...) field-tuple)
+       (map
+        (lambda (record-name fields)
+          (fields->persistent-record 
+           (record-constructor (record-constructor-descriptor record-name))
+           fields))
+        (list record-name0 record-name1 ...)
+        field-tuple))))
+
+  (define-syntax where
+    (syntax-rules ()
+      ((_ () name->t)
+       #f)
+      ((_ ((record-name (field-name value) ...) rest ...) name->t)
+       (fold-left
+        (lambda (s clause)
+          (if (string? s)
+              (string-append s " AND " clause)
+              clause))
+        (where (rest ...) name->t)
+        (list (format "~a.~a = '~a'"
+                      (name->t 'record-name)
+                      (string-underscore (symbol->string 'field-name))
+                      (escape value))
+              ...)))))
+
+  (define-syntax call-with-tuple
+    (syntax-rules ()
+      ((_ (record-name (reference foreign) ...) param cont)
+       (let* ((name->t (->t record-name reference ...))
+              (condition (where param name->t))
+              (c-tuple (column-tuple (record-name reference ...) name->t))
+              (query (format "SELECT ~a FROM ~a~a"
+                             (fold-left
+                              (lambda (s column)
+                                (if (string? s)
+                                    (string-append s ", " column)
+                                    column))
+                              #f
+                              (apply append c-tuple))
+                             (fold-left
+                              (lambda (s ref key)
+                                (let ((ti (name->t ref))
+                                      (tk (name->t key)))
+                                  (format "~a JOIN ~a ~a ON ~a.id = ~a.~a_id" s ref ti ti tk ref)))
+                              (format "~a ~a" 'record-name (name->t 'record-name))
+                              '(reference ...)
+                              '(foreign ...))
+                             (if (string? condition)
+                                 (string-append " WHERE " condition)
+                                 ""))))
+         (cont c-tuple query)))))
+
   (define-syntax lookup
     (syntax-rules ()
+      ((_ (record-name (reference foreign) ...) param)
+       (call-with-tuple
+        (record-name (reference foreign) ...)
+        param
+        (lambda (c-tuple query)
+          (if (not (zero? (execute query)))
+              #f
+              (let ((result (mysql_store_result *mysql*)))
+                (if (zero? result)
+                    #f
+                    (let ((row (mysql_fetch_row result)))
+                      (and (not (zero? row))
+                           (let ((ft (row->field-tuple c-tuple result row)))
+                             (mysql_free_result result)
+                             (and ft
+                                  (field-tuple->persistent-record-tuple (record-name reference ...) ft)))))))))))
       ((_ record-name param rest)
        (let* ((rtd (record-type-descriptor record-name))
               (c (record-constructor (record-constructor-descriptor record-name)))
@@ -126,6 +245,26 @@
 
   (define-syntax lookup-all
     (syntax-rules ()
+      ((_ (record-name (reference foreign) ...) param)
+       (call-with-tuple
+        (record-name (reference foreign) ...)
+        param
+        (lambda (c-tuple query)
+          (if (not (zero? (execute query)))
+              #f
+              (let ((result (mysql_store_result *mysql*)))
+                (if (zero? result)
+                    '()
+                    (let loop ((ls '())
+                               (row (mysql_fetch_row result)))
+                      (cond ((zero? row)
+                             (mysql_free_result result)
+                             (reverse ls))
+                            ((row->field-tuple c-tuple result row)
+                             => (lambda (ft)
+                                  (let ((rt (field-tuple->persistent-record-tuple (record-name reference ...) ft)))
+                                    (loop (cons rt ls) (mysql_fetch_row result)))))
+                            (else (loop (cons #f ls) (mysql_fetch_row result)))))))))))
       ((_ record-name param rest)
        (let* ((rtd (record-type-descriptor record-name))
               (c (record-constructor (record-constructor-descriptor record-name)))

@@ -1,5 +1,6 @@
 (library (lunula validation)
   (export define-validator
+          define-string-length-validator
           define-composite-validator
           guide
           hashtable->messages)
@@ -17,6 +18,26 @@
                (hashtable-set! ht 'message params)))
            ...
            body ...)))))
+
+  (define-syntax define-string-length-validator
+    (syntax-rules ()
+      ((_ name (is-blank too-short too-long) (min max))
+       (define-validator (name str)
+         (is-blank too-short too-long)
+         (let ((len (string-length str)))
+           (cond ((zero? len) (is-blank))
+                 ((< len min) (too-short))
+                 ((< max len) (too-long))))))
+      ((_ name (is-blank too-long) (max))
+       (define-validator (name str)
+         (is-blank too-long)
+         (let ((len (string-length str)))
+           (cond ((zero? len) (is-blank))
+                 ((< max len) (too-long))))))
+      ((_ name (too-long) (max))
+       (define-validator (name str)
+         (too-long)
+         (when (< max (string-length str)) (too-long))))))
 
   (define-syntax define-composite-validator
     (syntax-rules ()

@@ -17,6 +17,12 @@
           (prefix (only (lunula log) info) log:)
           (except (lunula persistent-record) define-persistent-record-type))
 
+  (define (record-name->table-name s)
+    (string-underscore (symbol->string s)))
+
+  (define (field-name->column-name s)
+    (string-underscore (symbol->string s)))
+
   (define NULL 0)
 
   (define *mysql* (mysql_init NULL))
@@ -44,7 +50,7 @@
      "SELECT "
      (fold-left (lambda (x y) (string-append x ", " y))
                 "id, created_at, updated_at"
-                (map string-underscore (map symbol->string (vector->list names))))
+                (map field-name->column-name (vector->list names)))
      (if where
          (format " FROM ~a WHERE ~a" table where)
          (format " FROM ~a" table))))
@@ -56,7 +62,7 @@
     (lookup-where names
                   table
                   (fold-left (lambda (x y)
-                               (let ((name (string-underscore (symbol->string (car y)))))
+                               (let ((name (field-name->column-name (car y))))
                                  (if x
                                      (format "~a AND ~a = '~a'" x name (escape (cadr y)))
                                      (format "~a = '~a'" name (escape (cadr y))))))
@@ -108,7 +114,7 @@
       (cons* "id"
              "created_at"
              "updated_at"
-             (map (lambda (name) (string-underscore (symbol->string name))) (vector->list names)))))
+             (map field-name->column-name (vector->list names)))))
 
   (define-syntax ->t
     (syntax-rules ()
@@ -175,7 +181,7 @@
         (where (rest ...) name->t)
         (list (format "~a.~a = '~a'"
                       (name->t 'record-name)
-                      (string-underscore (symbol->string 'field-name))
+                      (field-name->column-name 'field-name)
                       (escape value))
               ...)))))
 
@@ -195,10 +201,12 @@
                               (apply append c-tuple))
                              (fold-left
                               (lambda (s ref key)
-                                (let ((ti (name->t ref))
+                                (let ((tt (record-name->table-name ref))
+                                      (ti (name->t ref))
                                       (tk (name->t key)))
-                                  (format "~a JOIN ~a ~a ON ~a.id = ~a.~a_id" s ref ti ti tk ref)))
-                              (format "~a ~a" 'record-name (name->t 'record-name))
+                                  (format "~a JOIN ~a ~a ON ~a.id = ~a.~a_id"
+                                          s tt ti ti tk tt)))
+                              (format "~a ~a" (record-name->table-name 'record-name) (name->t 'record-name))
                               '(reference ...)
                               '(foreign ...))
                              (if (string? condition)
@@ -228,7 +236,7 @@
        (let* ((rtd (record-type-descriptor record-name))
               (c (record-constructor (record-constructor-descriptor record-name)))
               (names (record-type-field-names rtd))
-              (table (record-type-name rtd))
+              (table (record-name->table-name (record-type-name rtd)))
               (query (string-append (lookup-query names table param) rest)))
          (if (not (zero? (execute query)))
              #f
@@ -270,7 +278,7 @@
        (let* ((rtd (record-type-descriptor record-name))
               (c (record-constructor (record-constructor-descriptor record-name)))
               (names (record-type-field-names rtd))
-              (table (record-type-name rtd))
+              (table (record-name->table-name (record-type-name rtd)))
               (query (string-append (lookup-query names table param) rest)))
          (if (not (zero? (execute query)))
              #f
@@ -294,7 +302,7 @@
       (apply proc
              (fold-left (lambda (couple name value)
                           (if value
-                              `(,(cons (string-underscore (symbol->string name)) (car couple))
+                              `(,(cons (field-name->column-name name) (car couple))
                                 ,(cons value (cadr couple)))
                               couple))
                         '(() ())
@@ -330,7 +338,7 @@
   (define (save record)
     (let* ((rtd (record-rtd record))
            (names (record-type-field-names rtd))
-           (table (record-type-name rtd))
+           (table (record-name->table-name (record-type-name rtd)))
            (id (id-of record)))
       (if (integer? id)
           (let ((query (string-append (lookup-query names table id) " FOR UPDATE")))
@@ -380,11 +388,11 @@
   (define-syntax destroy
     (syntax-rules ()
       ((_ record)
-       (let* ((table (record-type-name (record-rtd record)))
+       (let* ((table (record-name->table-name (record-type-name (record-rtd record))))
               (query (delete-query table record)))
          (and (zero? (execute query))
               (mysql_affected_rows *mysql*))))
       ((_ record-name id)
-       (and (zero? (execute (delete-query/id 'record-name id)))
+       (and (zero? (execute (delete-query/id (record-name->table-name 'record-name) id)))
             (mysql_affected_rows *mysql*)))))
 )

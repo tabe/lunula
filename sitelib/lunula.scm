@@ -7,6 +7,7 @@
           close
           connect
           destroy
+          execute
           lookup
           lookup-all
           save

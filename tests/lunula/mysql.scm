@@ -39,7 +39,12 @@
 (let ((x (destroy a)))
   (assert-= 0 x))
 
-(log:info "~s" (lookup-all foobar '()))
+(execute "INSERT INTO foobar (name, memo) VALUES ('temporary', 'temporary')")
+(let ((len (length (lookup-all foobar '()))))
+  (assert-= 1 len))
+(execute "DELETE FROM foobar")
+(let ((len (length (lookup-all foobar '()))))
+  (assert-= 0 len))
 
 (close)
 

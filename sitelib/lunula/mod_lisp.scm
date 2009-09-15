@@ -190,9 +190,11 @@
                          (input-types rtd)
                          (input-descriptions rtd)
                          (iota (vector-length names))))
-             (html:input ((type "submit") (value (___ 'submit))))))
+             (html:input ((type "submit") (name "submit") (value (___ 'submit))))
+             "&nbsp;"
+             (html:input ((type "submit") (name "cancel") (value (___ 'cancel))))))
            path))))))
-  
+
   (define (entry-path? path)
     (hashtable-ref *scenario* path #f))
 
@@ -219,7 +221,7 @@
       ((_ (io) template message)
        (page (io #f) template message))
       ((_ param template)
-       (page param template #f))))
+       (page param template '()))))
 
   (define-condition-type &malformed-key-value &condition
     make-malformed-key-value malformed-key-value?
@@ -246,11 +248,15 @@
                    (messenger-bag-put! *temporary-path* path #t)
                    (match (messenger-bag-get! *request* path (* 2 *timeout*))
                      ((header content)
-                      (vector-map
-                       (lambda (name)
-                         (cond ((assoc name (content->alist content)) => cdr)
-                               (else #f)))
-                       (record-type-field-names rtd)))))))
+                      (let ((alist (content->alist content)))
+                        (cond ((assoc 'submit alist)
+                               (vector-map
+                                (lambda (name)
+                                  (cond ((assoc name alist) => cdr)
+                                        (else #f)))
+                                (record-type-field-names rtd)))
+                              (else #f))))
+                     (else #f)))))
            (let ((uuid (and (session? sess) (session-uuid sess))))
              (messenger-bag-put! *response* (recv io) `(200 template ,uuid ,body)))
            (send io path)
@@ -259,10 +265,11 @@
                     (messenger-bag-get-gracefully! *temporary-path* path 100)
                     (messenger-bag-get-gracefully! *request* path 100)
                     (raise fields))
-                   (else
+                   ((vector? fields)
                     (log:info "lunula> fields: ~s" fields)
                     (apply (record-constructor (record-constructor-descriptor record-name))
-                           (vector->list fields))))))))
+                           (vector->list fields)))
+                   (else #f))))))
       ((_ (io sess) (record-name) template messenge ...)
        (form (io sess) (record-name #f) template messenge ...))
       ((_ (io) (record-name record) template messenge ...)

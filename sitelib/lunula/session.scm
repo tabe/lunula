@@ -5,6 +5,7 @@
           session-user
           session-uuid
           confirmation
+          confirmation?
           ok?
           account
           account?

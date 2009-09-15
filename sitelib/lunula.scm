@@ -12,17 +12,6 @@
           lookup-all
           save
           define-scenario
-          session
-          session?
-          make-session
-          session-user
-          session-uuid
-          confirmation
-          ok?
-          user
-          user?
-          user-account
-          make-user
           parameter-of
           do-login
           do-logout
@@ -36,6 +25,5 @@
           entry-paths)
   (import (lunula mod_lisp)
           (lunula mysql)
-          (lunula session)
           (lunula uri))
   )

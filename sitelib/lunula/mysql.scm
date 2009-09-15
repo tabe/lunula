@@ -172,26 +172,49 @@
     (syntax-rules ()
       ((_ () name->t)
        #f)
-      ((_ ((record-name (field-name value) ...) rest ...) name->t)
+      ((_ ((record-name (field-name value) ...) e ...) name->t)
        (fold-left
         (lambda (s clause)
           (if (string? s)
               (string-append s " AND " clause)
               clause))
-        (where (rest ...) name->t)
+        (where (e ...) name->t)
         (list (format "~a.~a = '~a'"
                       (name->t 'record-name)
                       (field-name->column-name 'field-name)
                       (escape value))
               ...)))))
 
+  (define-syntax epilog
+    (syntax-rules (order-by limit)
+      ((_ () name->t)
+       "")
+      ((_ ((order-by (record-name (field-name dir) ...)) e ...) name->t)
+       (string-append
+        " ORDER BY "
+        (fold-left
+         (lambda (s clause)
+           (if (string? s)
+               (string-append s ", " clause)
+               clause))
+         #f
+         (list (format "~a.~a ~a"
+                       (name->t 'record-name)
+                       (field-name->column-name 'field-name)
+                       'dir)
+               ...))
+        (epilog (e ...) name->t)))
+      ((_ ((limit val) e ...) name->t)
+       (format "~a LIMIT ~a" (epilog (e ...) name->t) val))))
+
   (define-syntax call-with-tuple
     (syntax-rules ()
-      ((_ (record-name (reference foreign) ...) param cont)
+      ((_ (record-name (reference foreign) ...) param rest cont)
        (let* ((name->t (->t record-name reference ...))
               (condition (where param name->t))
+              (tail (epilog rest name->t))
               (c-tuple (column-tuple (record-name reference ...) name->t))
-              (query (format "SELECT ~a FROM ~a~a"
+              (query (format "SELECT ~a FROM ~a~a~a"
                              (fold-left
                               (lambda (s column)
                                 (if (string? s)
@@ -211,15 +234,17 @@
                               '(foreign ...))
                              (if (string? condition)
                                  (string-append " WHERE " condition)
-                                 ""))))
+                                 "")
+                             tail)))
          (cont c-tuple query)))))
 
   (define-syntax lookup
     (syntax-rules ()
-      ((_ (record-name (reference foreign) ...) param)
+      ((_ (record-name (reference foreign) ...) param rest)
        (call-with-tuple
         (record-name (reference foreign) ...)
         param
+        ()
         (lambda (c-tuple query)
           (if (not (zero? (execute query)))
               #f
@@ -232,6 +257,8 @@
                              (mysql_free_result result)
                              (and ft
                                   (field-tuple->persistent-record-tuple (record-name reference ...) ft)))))))))))
+      ((_ (record-name (reference foreign) ...) param)
+       (lookup (record-name (reference foreign) ...) param ()))
       ((_ record-name param rest)
        (let* ((rtd (record-type-descriptor record-name))
               (c (record-constructor (record-constructor-descriptor record-name)))
@@ -254,10 +281,11 @@
 
   (define-syntax lookup-all
     (syntax-rules ()
-      ((_ (record-name (reference foreign) ...) param)
+      ((_ (record-name (reference foreign) ...) param rest)
        (call-with-tuple
         (record-name (reference foreign) ...)
         param
+        rest
         (lambda (c-tuple query)
           (if (not (zero? (execute query)))
               #f
@@ -274,6 +302,8 @@
                                   (let ((rt (field-tuple->persistent-record-tuple (record-name reference ...) ft)))
                                     (loop (cons rt ls) (mysql_fetch_row result)))))
                             (else (loop (cons #f ls) (mysql_fetch_row result)))))))))))
+      ((_ (record-name (reference foreign) ...) param)
+       (lookup-all (record-name (reference foreign) ...) param ()))
       ((_ record-name param rest)
        (let* ((rtd (record-type-descriptor record-name))
               (c (record-constructor (record-constructor-descriptor record-name)))

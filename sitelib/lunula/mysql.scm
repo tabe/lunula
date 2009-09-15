@@ -186,7 +186,7 @@
               ...)))))
 
   (define-syntax epilog
-    (syntax-rules (order-by limit)
+    (syntax-rules (order-by offset limit)
       ((_ () name->t)
        "")
       ((_ ((order-by (record-name (field-name dir) ...)) e ...) name->t)
@@ -204,6 +204,8 @@
                        'dir)
                ...))
         (epilog (e ...) name->t)))
+      ((_ ((offset val) e ...) name->t)
+       (format "~a OFFSET ~a" (epilog (e ...) name->t) val))
       ((_ ((limit val) e ...) name->t)
        (format "~a LIMIT ~a" (epilog (e ...) name->t) val))))
 

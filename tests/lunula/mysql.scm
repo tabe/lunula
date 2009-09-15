@@ -39,12 +39,14 @@
 (let ((x (destroy a)))
   (assert-= 0 x))
 
-(execute "INSERT INTO foobar (name, memo) VALUES ('temporary', 'temporary')")
+(assert-= 0 (execute "BEGIN"))
+(assert-= 0 (execute "INSERT INTO foobar (name, memo) VALUES ('temporary', 'temporary')"))
 (let ((len (length (lookup-all foobar '()))))
   (assert-= 1 len))
-(execute "DELETE FROM foobar")
+(assert-= 0 (execute "DELETE FROM foobar"))
 (let ((len (length (lookup-all foobar '()))))
   (assert-= 0 len))
+(assert-= 0 (execute "COMMIT"))
 
 (close)
 

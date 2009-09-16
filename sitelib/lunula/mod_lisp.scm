@@ -491,12 +491,9 @@
 
   (define (build-entry-path name . query)
     (let ((path (string-append "/" (symbol->string name) (path-extension))))
-      (cond ((null? query)
-             path)
-            ((not (car query))
-             path)
-            (else
-             (apply string-append path "?" query)))))
+      (cond ((null? query) path)
+            ((for-all string? query) (apply string-append path "?" query))
+            (else path))))
 
   (define-syntax define-scenario
     (syntax-rules ()

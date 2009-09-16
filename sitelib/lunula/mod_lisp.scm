@@ -108,10 +108,7 @@
   (define-syntax make-html
     (syntax-rules ()
       ((_ template body ...)
-       (begin
-         (log:info "lunula> template: ~a" template)
-         (log:info "lunula> args: ~s" (list body ...))
-         (tree->string (eval-template template) body ...)))))
+       (tree->string (eval-template template) body ...))))
 
   (define (input-title rtd name)
     (___ (string->symbol (format "~a-~a" (record-type-name rtd) name))))

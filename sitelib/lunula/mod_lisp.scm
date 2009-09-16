@@ -235,7 +235,7 @@
           (cons (string->symbol k) (uri:decode-string v 'application/x-www-form-urlencoded)))
          ((k)
           (cons (string->symbol k) ""))
-         (else
+         (_
           (raise (make-malformed-key-value kv)))))
      (string-tokenize content (char-set-complement (char-set #\&)))))
 
@@ -256,7 +256,7 @@
                                         (else #f)))
                                 (record-type-field-names rtd)))
                               (else #f))))
-                     (else #f)))))
+                     (_ #f)))))
            (let ((uuid (and (session? sess) (session-uuid sess))))
              (messenger-bag-put! *response* (recv io) `(200 template ,uuid ,body)))
            (send io path)
@@ -286,7 +286,7 @@
                          (messenger-bag-put! *temporary-path* path #t)
                          (match (messenger-bag-get! *request* path (* 2 *timeout*))
                            ((header content) #t)
-                           (else #f)))
+                           (_ #f)))
                         (else #f)))))
          (let ((uuid (and (session? sess) (session-uuid sess))))
            (messenger-bag-put! *response* (recv io) `(200 template ,uuid ,message)))

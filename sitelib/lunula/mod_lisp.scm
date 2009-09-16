@@ -395,21 +395,18 @@
     (header missing-method-header-of))
 
   (define (method-of header)
-    (let ((x (assoc "method" header)))
-      (if x
-          (cadr x)
-          (raise (make-missing-method header)))))
+    (cond ((assoc "method" header) => cadr)
+          (else (raise (make-missing-method header)))))
 
   (define-condition-type &missing-content-length &condition
     make-missing-content-length missing-content-length?
     (header missing-content-length-header-of))
 
   (define (content-length-of header)
-    (let ((x (or (assoc "content-length" header)
-                 (assoc "Content-Length" header))))
-      (if x
-          (string->number (cadr x))
-          (raise (make-missing-content-length header)))))
+    (cond ((or (assoc "content-length" header)
+               (assoc "Content-Length" header))
+           => (lambda (x) (string->number (cadr x))))
+          (else (raise (make-missing-content-length header)))))
 
   (define (utf8-list->string utf8-list length)
     (let* ((bv (make-bytevector length))

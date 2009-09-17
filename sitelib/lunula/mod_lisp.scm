@@ -4,6 +4,7 @@
           mail
           redirect
           start
+          define-api
           define-scenario
           do-login
           do-logout
@@ -14,12 +15,14 @@
           template-environment
           build-entry-path
           content->alist
-          entry-paths)
+          entry-paths
+          build-api-path
+          api-path?)
   (import (core)
           (concurrent)
           (match)
           (rnrs)
-          (only (srfi :1) unfold take drop)
+          (only (srfi :1) unfold take drop append-map)
           (srfi :8)
           (only (srfi :13) string-prefix-ci? string-suffix? string-tokenize)
           (only (srfi :14) char-set char-set-complement)
@@ -34,7 +37,8 @@
           (lunula sendmail)
           (lunula session)
           (lunula tree)
-          (lunula uri))
+          (lunula uri)
+          (lunula validation))
 
   (define *timeout* (* 5 60 1000))
 
@@ -53,6 +57,11 @@
   (define *input-types* (make-eq-hashtable 10))
 
   (define *input-descriptions* (make-eq-hashtable 10))
+
+  (define *api* (make-eq-hashtable 10))
+
+  (define-record-type api-component
+    (fields validator template procedure))
 
   (define-syntax split-input-specification
     (syntax-rules ()
@@ -194,6 +203,22 @@
 
   (define (entry-path? path)
     (hashtable-ref *scenario* path #f))
+
+  (define (api-path? path)
+    (and (string? path)
+         (let ((ext (path-extension)))
+           (and (string-suffix? ext path)
+                (let ((ls (string-tokenize (substring path 0 (- (string-length path) (string-length ext)))
+                                           (char-set-complement (char-set #\/)))))
+                  (if (null? ls)
+                      #f
+                      (cond ((hashtable-ref *api* (string->symbol (car ls)) #f)
+                             => (lambda (component)
+                                  (let ((args (map uri:decode-string (cdr ls))))
+                                    (guide ((api-component-validator component) args)
+                                      (lambda _ #f)
+                                      (lambda _ (cons component args))))))
+                            (else #f))))))))
 
   (define (send-header&content client header . content)
     (let* ((h (fold-left (lambda (x y) (format "~a~a~%~a~%" x (car y) (cdr y))) "" header)))
@@ -474,6 +499,18 @@
                        (let ((response (messenger-bag-get! *response* path)))
                          (log:info "lunula> response: ~s" response)
                          (send-response client response))))
+                    ((api-path? path)
+                     => (lambda (pair)
+                          (log:info "lunula> api: ~a" pair)
+                          (let ((component (car pair)))
+                            (cond ((apply (api-component-procedure component) (cdr pair))
+                                   => (lambda (body)
+                                        (send-html client
+                                                   (api-component-template component)
+                                                   (cond ((logged-in? (parameter-of header)) => session-uuid)
+                                                         (else #f))
+                                                   body)))
+                                  (else (default-handler header client))))))
                     ((messenger-bag-get-gracefully! *temporary-path* path 100 #f)
                      (log:info "lunula> temp: ~a" path)
                      (messenger-bag-put! *request* path (list header content))
@@ -519,5 +556,27 @@
                    (lambda () (shutdown-mailbox io)))))
            (hashtable-set! *scenario* path proc)
            proc)))))
+
+  (define (build-api-path name query . args)
+    (let ((last (cons
+                 (path-extension)
+                 (if (string? query)
+                     (list "?" query)
+                     '()))))
+      (cond ((for-all string? args)
+             (apply string-append
+                    (cons*
+                     "/"
+                     (symbol->string name)
+                     (append
+                      (append-map (lambda (arg) (list "/" arg)) args)
+                      last))))
+            (else (apply string-append "/" last)))))
+
+  (define-syntax define-api
+    (syntax-rules ()
+      ((_ (name arg ...) validator template e0 e1 ...)
+       (let ((proc (lambda (arg ...) e0 e1 ...)))
+         (hashtable-set! *api* 'name (make-api-component validator 'template proc))))))
 
 )

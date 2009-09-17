@@ -11,6 +11,7 @@
           lookup
           lookup-all
           save
+          define-api
           define-scenario
           parameter-of
           do-login

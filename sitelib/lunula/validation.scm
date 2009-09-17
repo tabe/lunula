@@ -1,5 +1,6 @@
 (library (lunula validation)
   (export define-validator
+          define-predicate-validator
           define-string-length-validator
           define-composite-validator
           guide
@@ -18,6 +19,14 @@
                (hashtable-set! ht 'message params)))
            ...
            body ...)))))
+
+  (define-syntax define-predicate-validator
+    (syntax-rules ()
+      ((_ name message predicate)
+       (define-validator (name x)
+         (message)
+         (or (predicate x)
+             (message))))))
 
   (define-syntax define-string-length-validator
     (syntax-rules ()
@@ -41,6 +50,13 @@
 
   (define-syntax define-composite-validator
     (syntax-rules ()
+      ((_ name ((i) validator ...) ...)
+       (define (name ht)
+         (lambda (ls)
+           (let ((param (list-ref ls i)))
+             ((validator ht) param)
+             ...)
+           ...)))
       ((_ name (extractor validator ...) ...)
        (define (name ht)
          (lambda args

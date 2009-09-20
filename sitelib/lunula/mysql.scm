@@ -168,6 +168,14 @@
         (list record-name0 record-name1 ...)
         field-tuple))))
 
+  (define (equality t column-name value)
+    (let ((left (format "~a.~a" t column-name)))
+      (if (boolean? value)
+          (if value
+              (string-append left " IS NOT NULL")
+              (string-append left " IS NULL"))
+          (format "~a = '~a'" left (escape value)))))
+
   (define-syntax where
     (syntax-rules ()
       ((_ () name->t)
@@ -179,10 +187,9 @@
               (string-append s " AND " clause)
               clause))
         (where (e ...) name->t)
-        (list (format "~a.~a = '~a'"
-                      (name->t 'record-name)
-                      (field-name->column-name 'field-name)
-                      (escape value))
+        (list (equality (name->t 'record-name)
+                        (field-name->column-name 'field-name)
+                        value)
               ...)))))
 
   (define-syntax epilog

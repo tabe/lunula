@@ -1,6 +1,7 @@
 (library (lunula validation)
   (export define-validator
           define-predicate-validator
+          define-condition-validator
           define-string-length-validator
           define-composite-validator
           guide
@@ -27,6 +28,20 @@
          (message)
          (or (predicate x)
              (message))))))
+
+  (define-syntax define-condition-validator
+    (syntax-rules ()
+      ((_ name ((message predicate) ...) proc validator ...)
+       (define (name ht)
+         (lambda args
+           (guard (e
+                   ((predicate e) (hashtable-set! ht 'message e))
+                   ...)
+             (call-with-values
+                 (lambda () (apply proc args))
+               (lambda params
+                 (for-each (lambda (v param) ((v ht) param)) (list validator ...) params)
+                 (apply values params)))))))))
 
   (define-syntax define-string-length-validator
     (syntax-rules ()

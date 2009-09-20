@@ -122,16 +122,24 @@
   (define (input-title rtd name)
     (___ (string->symbol (format "~a-~a" (record-type-name rtd) name))))
 
+  (define (radio-buttons name v ls)
+
+    (define (radio-button x y)
+      (let ((id (make-uuid)))
+        (list (html:input ((type 'radio) (name name) (value (car x)) (id id) (checked y)))
+              (html:label ((for id)) (cadr x))
+              "&nbsp;")))
+
+    (let ((checked (map (lambda (x) (string=? (format "~a" v) (format "~a" (car x)))) ls)))
+      (if (exists values checked)
+          (map radio-button ls checked)
+          (map (lambda (x) (radio-button x (caddr x))) ls))))
+
   (define (input-field type name v)
     (cond ((list? type)
            (match type
              (('radio . ls)
-              (map
-               (lambda (x)
-                 (let ((id (make-uuid)))
-                   (append (html:input ((type 'radio) (name name) (value (car x)) (id id) (checked (caddr x))))
-                           (html:label ((for id)) (cadr x)))))
-               ls))
+              (radio-buttons name v ls))
              (('select . ls)
               (html:select
                ((name name))

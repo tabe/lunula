@@ -93,14 +93,11 @@
                                (utf8->string (make-bytevector-mapping f (c-unsigned-int-ref (+ lengths (* i sizeof:int))))))))
                    (lp (+ i 1) (cons v fields))))))))
 
-  (define-syntax execute
-    (syntax-rules ()
-      ((_ query)
-       (begin
-         (log:info "MySQL> ~a" query)
-         (let ((r (mysql_query *mysql* query)))
-           (unless (zero? r) (log:info "MySQL! ~a" (mysql_error *mysql*)))
-           r)))))
+  (define (execute query)
+    (log:info "MySQL> ~a" query)
+    (let ((r (mysql_query *mysql* query)))
+      (unless (zero? r) (log:info "MySQL! ~a" (mysql_error *mysql*)))
+      r))
 
   (define (fields->persistent-record constructor fields)
     (let ((record (apply constructor (cdddr fields))))

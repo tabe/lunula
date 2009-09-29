@@ -29,13 +29,16 @@ test:
 	$(YPSILON) tests/lunula/mod_lisp.scm
 	$(YPSILON) tests/lunula/mysql.scm
 	$(YPSILON) tests/lunula/persistent-record.scm
+	$(YPSILON) tests/lunula/rss.scm
 	$(YPSILON) tests/lunula/sendmail.scm
 	$(YPSILON) tests/lunula/session.scm
 	$(YPSILON) tests/lunula/string.scm
 	$(YPSILON) tests/lunula/tree.scm
 	$(YPSILON) tests/lunula/uri.scm
 	$(YPSILON) tests/lunula/validation.scm
+	$(YPSILON) tests/lunula/xml.scm
 	$(YPSILON) tests/lunula.scm
 
 stats:
 	wc -l sitelib/lunula/*.scm sitelib/lunula.scm
+	wc -l tests/lunula/*.scm tests/lunula.scm

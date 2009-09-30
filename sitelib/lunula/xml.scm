@@ -12,7 +12,7 @@
   (define-syntax declaration
     (syntax-rules ()
       ((_ version encoding)
-       `("<?xml version='" ,version "' encoding='" ,encoding "'?>"))))
+       `("<?xml version='" ,version "' encoding='" ,encoding "'?>\n"))))
 
   (define default-attributes (make-eq-hashtable))
 

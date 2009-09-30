@@ -1,10 +1,11 @@
 (library (lunula rss)
-  (export declaration
-          channel
+  (export channel
           dc:date
+          dc:subject
           description
           guid
           item
+          items
           language
           link
           rdf:li
@@ -17,9 +18,11 @@
   (define-element
     channel
     dc:date
+    dc:subject
     description
     guid
     item
+    items
     language
     link
     rdf:li

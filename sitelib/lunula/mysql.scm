@@ -8,6 +8,7 @@
           lookup-all
           save)
   (import (rnrs)
+          (only (core) make-parameter)
           (only (srfi :1) list-index iota)
           (only (srfi :13) string-prefix-ci?)
           (only (srfi :48) format)
@@ -25,15 +26,16 @@
 
   (define NULL 0)
 
-  (define *mysql* (mysql_init NULL))
+  (define *mysql* (make-parameter #f))
 
   (define (connect host user passwd database)
-    (if (zero? (mysql_real_connect *mysql* host user passwd database 0 NULL 0))
-        (mysql_error *mysql*)
+    (*mysql* (mysql_init NULL))
+    (if (zero? (mysql_real_connect (*mysql*) host user passwd database 0 NULL 0))
+        (mysql_error (*mysql*))
         #t))
 
   (define (close)
-    (mysql_close *mysql*))
+    (mysql_close (*mysql*)))
 
   (define (escape x)
     (cond ((integer? x) x)
@@ -41,7 +43,7 @@
            (let* ((bv (string->utf8 x))
                   (len (bytevector-length bv))
                   (dst (make-bytevector (+ (* 2 len) 1))))
-             (mysql_real_escape_string *mysql* dst x len)
+             (mysql_real_escape_string (*mysql*) dst x len)
              (utf8->string dst)))
           (else (escape (format "~a" x)))))
 
@@ -95,8 +97,8 @@
 
   (define (execute query)
     (log:info "MySQL> ~a" query)
-    (let ((r (mysql_query *mysql* query)))
-      (unless (zero? r) (log:info "MySQL! ~a" (mysql_error *mysql*)))
+    (let ((r (mysql_query (*mysql*) query)))
+      (unless (zero? r) (log:info "MySQL! ~a" (mysql_error (*mysql*))))
       r))
 
   (define (fields->persistent-record constructor fields)
@@ -254,7 +256,7 @@
         (lambda (c-tuple query)
           (if (not (zero? (execute query)))
               #f
-              (let ((result (mysql_store_result *mysql*)))
+              (let ((result (mysql_store_result (*mysql*))))
                 (if (zero? result)
                     #f
                     (let ((row (mysql_fetch_row result)))
@@ -273,7 +275,7 @@
               (query (string-append (lookup-query names table param) rest)))
          (if (not (zero? (execute query)))
              #f
-             (let ((result (mysql_store_result *mysql*)))
+             (let ((result (mysql_store_result (*mysql*))))
                (if (zero? result)
                    #f
                    (let ((row (mysql_fetch_row result)))
@@ -295,7 +297,7 @@
         (lambda (c-tuple query)
           (if (not (zero? (execute query)))
               #f
-              (let ((result (mysql_store_result *mysql*)))
+              (let ((result (mysql_store_result (*mysql*))))
                 (if (zero? result)
                     '()
                     (let loop ((ls '())
@@ -318,7 +320,7 @@
               (query (string-append (lookup-query names table param) rest)))
          (if (not (zero? (execute query)))
              #f
-             (let ((result (mysql_store_result *mysql*)))
+             (let ((result (mysql_store_result (*mysql*))))
                (if (zero? result)
                    '()
                    (let loop ((ls '())
@@ -379,7 +381,7 @@
       (if (integer? id)
           (let ((query (string-append (lookup-query names table id) " FOR UPDATE")))
             (and (zero? (execute query))
-                 (let ((result (mysql_store_result *mysql*)))
+                 (let ((result (mysql_store_result (*mysql*))))
                    (if (zero? result)
                        #f
                        (call/cc
@@ -403,14 +405,14 @@
                                     (mysql_free_result result)))
                               (let ((query (insert-query rtd names table record)))
                                 (and (zero? (execute query))
-                                     (< 0 (mysql_affected_rows *mysql*))))
+                                     (< 0 (mysql_affected_rows (*mysql*)))))
                               (let ((query (update-query rtd names table record)))
                                 (and (zero? (execute query))
-                                     (mysql_affected_rows *mysql*))))))))))
+                                     (mysql_affected_rows (*mysql*)))))))))))
           (let ((query (insert-query rtd names table record)))
             (cond ((and (zero? (execute query))
-                        (< 0 (mysql_affected_rows *mysql*)))
-                   (id-set! record (mysql_insert_id *mysql*))
+                        (< 0 (mysql_affected_rows (*mysql*))))
+                   (id-set! record (mysql_insert_id (*mysql*)))
                    #t)
                   (else
                    #f))))))
@@ -427,8 +429,8 @@
        (let* ((table (record-name->table-name (record-type-name (record-rtd record))))
               (query (delete-query table record)))
          (and (zero? (execute query))
-              (mysql_affected_rows *mysql*))))
+              (mysql_affected_rows (*mysql*)))))
       ((_ record-name id)
        (and (zero? (execute (delete-query/id (record-name->table-name 'record-name) id)))
-            (mysql_affected_rows *mysql*)))))
+            (mysql_affected_rows (*mysql*))))))
 )

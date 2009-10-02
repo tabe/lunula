@@ -117,12 +117,12 @@
 
   (define-syntax ->t
     (syntax-rules ()
-      ((_ record-name0 record-name1 ...)
+      ((_ depth record-name0 record-name1 ...)
        (lambda (name)
          (cond ((list-index
                  (lambda (x) (eq? x name))
                  '(record-name0 record-name1 ...))
-                => (lambda (i) (format "t~d" i)))
+                => (lambda (i) (format "t~d_~d" depth i)))
                (else #f))))))
 
   (define-syntax column-tuple
@@ -175,17 +175,55 @@
               (string-append left " IS NULL"))
           (format "~a = '~a'" left (escape value)))))
 
-  (define-syntax where
+  (define-syntax where-exists
     (syntax-rules ()
-      ((_ () name->t)
+      ((_ depth (record-name (reference foreign) ...) param proc)
+       (let* ((depth+1 (+ depth 1))
+              (name->t (lambda (x)
+                         (or ((->t depth+1 record-name reference ...) x)
+                             (proc x))))
+              (condition (where depth+1 param name->t)))
+         (format "EXISTS (SELECT 1 FROM ~a~a)"
+                 (fold-left
+                  (lambda (s ref key)
+                    (let ((tt (record-name->table-name ref))
+                          (ti (name->t ref))
+                          (tk (name->t key)))
+                      (format "~a JOIN ~a ~a ON ~a.id = ~a.~a_id"
+                              s tt ti ti tk tt)))
+                  (format "~a ~a" (record-name->table-name 'record-name) (name->t 'record-name))
+                  '(reference ...)
+                  '(foreign ...))
+                 (if (string? condition)
+                     (string-append " WHERE " condition)
+                     ""))))))
+
+  (define-syntax where
+    (syntax-rules (exists)
+      ((_ depth () name->t)
        #f)
-      ((_ ((record-name (field-name value) ...) e ...) name->t)
+      ((_ depth ((exists x param) e ...) name->t)
+       (let ((s (where depth (e ...) name->t))
+             (clause (where-exists depth x param name->t)))
+         (if (string? s)
+             (string-append s " AND " clause)
+             clause)))
+      ((_ depth ((record-name (reference)) e ...) name->t)
+       (let ((s (where depth (e ...) name->t))
+             (clause (format "~a.~a_id = ~a.id"
+                             (name->t 'record-name)
+                             (record-name->table-name 'reference)
+                             (name->t 'reference))))
+         (if (string? s)
+             (string-append s " AND " clause)
+             clause)))
+      ((_ depth ((record-name (field-name value) ...) e ...) name->t)
        (fold-left
         (lambda (s clause)
           (if (string? s)
               (string-append s " AND " clause)
               clause))
-        (where (e ...) name->t)
+        (where depth (e ...) name->t)
         (list (equality (name->t 'record-name)
                         (field-name->column-name 'field-name)
                         value)
@@ -218,8 +256,8 @@
   (define-syntax call-with-tuple
     (syntax-rules ()
       ((_ (record-name (reference foreign) ...) param rest cont)
-       (let* ((name->t (->t record-name reference ...))
-              (condition (where param name->t))
+       (let* ((name->t (->t 0 record-name reference ...))
+              (condition (where 0 param name->t))
               (tail (epilog rest name->t))
               (c-tuple (column-tuple (record-name reference ...) name->t))
               (query (format "SELECT ~a FROM ~a~a~a"

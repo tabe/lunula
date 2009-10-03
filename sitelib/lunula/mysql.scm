@@ -175,7 +175,7 @@
               (string-append left " IS NULL"))
           (format "~a = '~a'" left (escape value)))))
 
-  (define-syntax where-exists
+  (define-syntax exists-clause
     (syntax-rules ()
       ((_ depth (record-name (reference foreign) ...) param proc)
        (let* ((depth+1 (+ depth 1))
@@ -204,7 +204,7 @@
        #f)
       ((_ depth ((exists x param) e ...) name->t)
        (let ((s (where depth (e ...) name->t))
-             (clause (where-exists depth x param name->t)))
+             (clause (exists-clause depth x param name->t)))
          (if (string? s)
              (string-append s " AND " clause)
              clause)))

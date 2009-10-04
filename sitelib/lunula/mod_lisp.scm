@@ -494,7 +494,6 @@
                      (lambda (proc)
                        (log:info "lunula> entry: ~a" path)
                        (spawn* (lambda ()
-                                 (log:info "lunula> here")
                                  (guard (con
                                          ((message-condition? con)
                                           (log:info "lunula> ~a" (condition-message con))
@@ -503,7 +502,7 @@
                                           con))
                                    (proc header content)))
                                (lambda (x)
-                                 (log:info "lunula> there: ~a" x)))
+                                 (log:info "lunula> ~a" x)))
                        (let ((response (messenger-bag-get! *response* path)))
                          (log:info "lunula> response: ~s" response)
                          (send-response client response))))
@@ -526,7 +525,6 @@
                        (log:info "lunula> response: ~s" response)
                        (send-response client response)))
                     (else
-                     (log:info "lunula> default: ~a" path)
                      (default-handler header client))))
             (socket-close client)
             (lp (socket-accept socket)))))))

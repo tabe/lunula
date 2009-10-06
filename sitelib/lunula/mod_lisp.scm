@@ -98,6 +98,16 @@
      '((except (rnrs) div)
        (lunula html))))
 
+  (define *template-cache* (make-eq-hashtable 10))
+
+  (define (path->template path)
+    (call-with-input-file path
+      (lambda (port)
+        (unfold eof-object?
+                values
+                (lambda _ (read port))
+                (read port)))))
+
   (define-syntax template-environment
     (syntax-rules ()
       ((_ e0 e1 ...)
@@ -106,12 +116,20 @@
   (define-syntax eval-template
     (syntax-rules ()
       ((_ template)
-       (let ((forest (call-with-input-file (format "~a/~a.scm" (templates) template)
-                       (lambda (port)
-                         (unfold eof-object?
-                                 values
-                                 (lambda _ (read port))
-                                 (read port))))))
+       (let* ((path (format "~a/~a.scm" (templates) template))
+              (forest (cond ((hashtable-ref *template-cache* template #f)
+                             => (lambda (cached)
+                                  (let ((m (string-append path ".modified")))
+                                    (cond ((file-exists? m)
+                                           (delete-file m)
+                                           (let ((forest (path->template path)))
+                                             (hashtable-set! *template-cache* template forest)
+                                             forest))
+                                          (else cached)))))
+                            (else
+                             (let ((forest (path->template path)))
+                               (hashtable-set! *template-cache* template forest)
+                               forest)))))
          (eval (cons 'list forest) (apply environment (*template-environment*)))))))
 
   (define-syntax make-html

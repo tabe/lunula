@@ -33,6 +33,16 @@
 
 (connect "localhost" mysql-user mysql-password mysql-database)
 
+(execute "DROP TABLE IF EXISTS foobar")
+(execute "CREATE TABLE foobar (\
+  id INT NOT NULL AUTO_INCREMENT,\
+  name VARCHAR(256),\
+  memo VARCHAR(256),\
+  created_at DATETIME,\
+  updated_at DATETIME,\
+  PRIMARY KEY (id)\
+) DEFAULT CHARSET=UTF8")
+
 (assert-boolean=? #t (save a))
 (foobar-is (id-of a) "lol" "________")
 (foobar-name-set! a #f)

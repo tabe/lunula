@@ -3,6 +3,7 @@
 
 (import (rnrs)
         (lunula mysql)
+        (only (lunula configuration) define-configuration)
         (only (lunula persistent-record) define-persistent-record-type persistent-protocol id-of)
         (prefix (only (lunula log) info) log:)
         (xunit))
@@ -26,7 +27,11 @@
 
 (define a (make-foobar "lol" "________"))
 
-(connect "localhost" "root" "yoursql" "errata")
+(define-configuration mysql-user)
+(define-configuration mysql-password)
+(define-configuration mysql-database)
+
+(connect "localhost" mysql-user mysql-password mysql-database)
 
 (assert-boolean=? #t (save a))
 (foobar-is (id-of a) "lol" "________")

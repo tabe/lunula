@@ -4,7 +4,7 @@ PREFIX = /usr/local
 
 YPSILON_SITELIB = /home/tabe/base64:/home/tabe/uri:/home/tabe/xunit:/home/tabe/ypsilon-foreign-lib/sitelib
 
-YPSILON = env YPSILON_SITELIB=$(YPSILON_SITELIB) $(PROG) --sitelib=sitelib --heap-limit=16
+YPSILON = env YPSILON_SITELIB=$(YPSILON_SITELIB) LUNULA_CONFIGURATION_DIRECTORY=./config $(PROG) --sitelib=sitelib --heap-limit=16
 
 .PHONY: check install uninstall test stats
 

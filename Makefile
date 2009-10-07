@@ -22,6 +22,7 @@ uninstall:
 
 test:
 	$(YPSILON) tests/lunula/concurrent.scm
+	$(YPSILON) tests/lunula/configuration.scm
 	$(YPSILON) tests/lunula/gettext.scm
 	$(YPSILON) tests/lunula/hmac.scm
 	$(YPSILON) tests/lunula/html.scm

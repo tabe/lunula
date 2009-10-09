@@ -4,13 +4,6 @@
           form
           mail
           redirect
-          close
-          connect
-          destroy
-          execute
-          lookup
-          lookup-all
-          save
           define-api
           define-scenario
           parameter-of
@@ -25,6 +18,5 @@
           content->alist
           entry-paths)
   (import (lunula mod_lisp)
-          (lunula mysql)
           (lunula uri))
   )

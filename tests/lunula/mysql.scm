@@ -120,7 +120,7 @@
 (assert-execute "ROLLBACK")
 
 ;; lookup
-(let ((x (lookup foobar `((name "lol")))))
+(let ((x (lookup foobar ((name "lol")))))
   (assert (foobar? x)))
 
 ;; lookup with foregin references
@@ -142,10 +142,10 @@
 ;; lookup-all
 (assert-execute "BEGIN")
 (assert-execute "INSERT INTO foobar (name, memo) VALUES ('temporary', 'temporary')")
-(let ((len (length (lookup-all foobar '()))))
+(let ((len (length (lookup-all foobar ()))))
   (assert-= 2 len))
 (assert-execute "DELETE FROM foobar")
-(let ((len (length (lookup-all foobar '()))))
+(let ((len (length (lookup-all foobar ()))))
   (assert-= 0 len))
 (assert-execute "ROLLBACK")
 

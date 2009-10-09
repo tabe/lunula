@@ -60,26 +60,26 @@
   (define (lookup-query/id names table id)
     (lookup-where names table (format "id = '~d'" id)))
 
-  (define (lookup-query/list names table c)
-    (lookup-where names
-                  table
-                  (fold-left (lambda (x y)
-                               (let ((name (field-name->column-name (car y))))
-                                 (if x
-                                     (format "~a AND ~a = '~a'" x name (escape (cadr y)))
-                                     (format "~a = '~a'" name (escape (cadr y))))))
-                             #f
-                             c)))
-
-  (define (lookup-query names table param)
-    (cond ((integer? param)
-           (lookup-query/id names table param))
-          ((list? param)
-           (lookup-query/list names table param))
-          ((string? param)
-           (lookup-where names table param))
-          (else
-           (raise param))))
+  (define-syntax lookup-query
+    (syntax-rules ()
+      ((_ names table ((c v) ...))
+       (lookup-where names
+                     table
+                     (fold-left (lambda (x y)
+                                  (let ((name (field-name->column-name (car y))))
+                                    (if x
+                                        (format "~a AND ~a = '~a'" x name (escape (cadr y)))
+                                        (format "~a = '~a'" name (escape (cadr y))))))
+                                #f
+                                `((c ,v) ...))))
+      ((_ names table param)
+       (let ((x param))
+         (cond ((integer? x)
+                (lookup-query/id names table x))
+               ((string? x)
+                (lookup-where names table x))
+               (else
+                (raise x)))))))
 
   (define (row->fields names result row)
     (let ((num (mysql_num_fields result))

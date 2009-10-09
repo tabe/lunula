@@ -1,4 +1,6 @@
 #!/usr/bin/env ypsilon
 #!r6rs
 
-(import (lunula))
+(import (lunula) (xunit))
+
+(report)

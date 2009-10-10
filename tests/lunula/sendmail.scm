@@ -1,8 +1,13 @@
 #!/usr/bin/env ypsilon
 #!r6rs
 
-(import (lunula sendmail) (xunit))
+(import (lunula configuration)
+        (lunula sendmail)
+        (xunit))
 
-(assert-= 0 (sendmail "tabe" "tabe" "test for (lunula sendmail)" "あいうえお"))
+(define-configuration test-mail-address)
+
+(skip-unless test-mail-address
+  (assert-zero? (sendmail test-mail-address test-mail-address "test for (lunula sendmail)" "あいうえお")))
 
 (report)

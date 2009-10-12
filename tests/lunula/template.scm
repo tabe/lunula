@@ -10,5 +10,6 @@
 (assert-equal? '("404 Not Found") (template->tree 404))
 (assert-equal? '() (template->tree 'empty))
 (assert-equal? '(()) (template->tree 'null))
+(delete-file "templates/00TOUCHED")
 
 (report)

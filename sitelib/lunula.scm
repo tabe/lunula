@@ -12,8 +12,6 @@
           logged-in?
           path-extension
           add-input-fields
-          templates
-          template-environment
           build-entry-path
           content->alist
           entry-paths)

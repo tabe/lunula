@@ -34,6 +34,7 @@ test:
 	$(YPSILON) tests/lunula/sendmail.scm
 	$(YPSILON) tests/lunula/session.scm
 	$(YPSILON) tests/lunula/string.scm
+	$(YPSILON) tests/lunula/template.scm
 	$(YPSILON) tests/lunula/tree.scm
 	$(YPSILON) tests/lunula/uri.scm
 	$(YPSILON) tests/lunula/validation.scm

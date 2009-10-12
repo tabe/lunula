@@ -11,18 +11,16 @@
           logged-in?
           path-extension
           add-input-fields
-          templates
-          template-environment
           build-entry-path
           content->alist
           entry-paths
           build-api-path
           api-path?)
-  (import (core)
+  (import (only (core) collect-notify display-thread-status format make-parameter usleep)
           (concurrent)
           (match)
           (rnrs)
-          (only (srfi :1) unfold take drop append-map)
+          (only (srfi :1) iota unfold take drop append-map)
           (srfi :8)
           (only (srfi :13) string-prefix-ci? string-suffix? string-tokenize)
           (only (srfi :14) char-set char-set-complement)
@@ -36,6 +34,7 @@
           (prefix (lunula log) log:)
           (lunula sendmail)
           (lunula session)
+          (only (lunula template) eval-template template->tree)
           (lunula tree)
           (lunula uri)
           (lunula validation))
@@ -91,48 +90,10 @@
   (define (input-descriptions rtd)
     (hashtable-ref *input-descriptions* rtd '()))
 
-  (define templates (make-parameter (lookup-process-environment "LUNULA_TEMPLATES")))
-
-  (define *template-environment*
-    (make-parameter
-     '((except (rnrs) div)
-       (lunula html))))
-
-  (define *template-cache* (make-eq-hashtable 10))
-
-  (define (path->template path)
-    (call-with-input-file path
-      (lambda (port)
-        (unfold eof-object?
-                values
-                (lambda _ (read port))
-                (read port)))))
-
-  (define-syntax template-environment
-    (syntax-rules ()
-      ((_ e0 e1 ...)
-       (*template-environment* '(e0 e1 ...)))))
-
-  (define (eval-template force)
-    (let ((touched (format "~a/00TOUCHED" (templates))))
-      (when (or force (not (file-exists? touched)))
-        (for-each
-         (lambda (f)
-           (when (string-suffix? ".scm" f)
-             (let* ((template (string->symbol (substring f 0 (- (string-length f) 4))))
-                    (path (format "~a/~a" (templates) f))
-                    (forest (path->template path))
-                    (evaluated (eval (cons 'list forest) (apply environment (*template-environment*)))))
-               (hashtable-set! *template-cache* template evaluated))))
-         (directory-list (templates)))
-        (call-with-port (open-file-output-port touched (file-options no-fail))
-          values))))
-
   (define-syntax make-html
     (syntax-rules ()
       ((_ template body ...)
-       (let ((tree (hashtable-ref *template-cache* template '())))
-         (tree->string tree body ...)))))
+       (tree->string (template->tree template) body ...))))
 
   (define (input-title rtd name)
     (___ (string->symbol (format "~a-~a" (record-type-name rtd) name))))

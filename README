@@ -1,0 +1,16 @@
+Lunula -- round as the moon
+
+Description
+-----------
+This program is a continuation-based framework for web applications.
+It runs on Ypsilon Scheme [0].
+The current version serves behind mod_lisp [1].
+
+License
+-------
+New BSD License
+
+Reference
+---------
+[0] http://code.google.com/p/ypsilon/
+[1] http://www.fractalconcept.com/asp/html/mod_lisp.html

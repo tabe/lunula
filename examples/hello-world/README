@@ -1,0 +1,19 @@
+Configuration for mod_lisp
+--------------------------
+
+First of all, it is necessary to set up Apache mod_lisp on localhost.
+You may want to add the following line to httpd.conf:
+LispServer 127.0.0.1 8080 "Lunula"
+
+
+Starting the server
+-------------------
+
+Run `env YPSILON_SITELIB="path to (uri)" make start',
+then the server will start to wait for requests on the port 8080.
+
+
+Stopping the server
+-------------------
+
+You have to kill the server's process by the TERM signal.

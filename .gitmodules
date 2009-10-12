@@ -1,0 +1,12 @@
+[submodule "submodules/base64"]
+	path = submodules/base64
+	url = git@github.com:tabe/base64.git
+[submodule "submodules/uri"]
+	path = submodules/uri
+	url = git@github.com:tabe/uri.git
+[submodule "submodules/xunit"]
+	path = submodules/xunit
+	url = git@github.com:tabe/xunit.git
+[submodule "submodules/ypsilon-foreign-lib"]
+	path = submodules/ypsilon-foreign-lib
+	url = git@github.com:tabe/ypsilon-foreign-lib.git

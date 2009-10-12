@@ -1,7 +1,7 @@
 (library (lunula template)
   (export templates
           template-environment
-          eval-template
+          load-templates
           template->tree)
   (import (rnrs)
           (rnrs eval)
@@ -31,7 +31,7 @@
                 (lambda _ (read port))
                 (read port)))))
 
-  (define (eval-template force)
+  (define (load-templates force)
     (let ((touched (format "~a/00TOUCHED" (templates))))
       (when (or force (not (file-exists? touched)))
         (for-each

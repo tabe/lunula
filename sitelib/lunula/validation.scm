@@ -26,7 +26,8 @@
       ((_ name message predicate)
        (define-validator (name x)
          (message)
-         (or (predicate x)
+         (if (predicate x)
+             x
              (message))))))
 
   (define-syntax define-condition-validator
@@ -51,17 +52,22 @@
          (let ((len (string-length str)))
            (cond ((zero? len) (is-blank))
                  ((< len min) (too-short))
-                 ((< max len) (too-long))))))
+                 ((< max len) (too-long))
+                 (else len)))))
       ((_ name (is-blank too-long) (max))
        (define-validator (name str)
          (is-blank too-long)
          (let ((len (string-length str)))
            (cond ((zero? len) (is-blank))
-                 ((< max len) (too-long))))))
+                 ((< max len) (too-long))
+                 (else len)))))
       ((_ name (too-long) (max))
        (define-validator (name str)
          (too-long)
-         (when (< max (string-length str)) (too-long))))))
+         (let ((len (string-length str)))
+           (if (< max len)
+               (too-long)
+               len))))))
 
   (define-syntax define-composite-validator
     (syntax-rules ()

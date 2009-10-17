@@ -39,5 +39,4 @@
       ((_ name default)
        (define name (get-configuration 'name default)))))
 
-
 )

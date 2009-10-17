@@ -27,7 +27,7 @@
            (apply put-tree oport (apply tree args) args))
           (else
            (error 'put-tree "invalid tree" tree))))
-  
+
   (define (tree->string tree . args)
     (call-with-string-output-port
      (lambda (oport)

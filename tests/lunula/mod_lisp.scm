@@ -13,5 +13,5 @@
   #t)
 
 (assert-equal? '("a" "b" "c") (cdr (api-path? "/test/a/b/c.html")))
-  
+
 (report)

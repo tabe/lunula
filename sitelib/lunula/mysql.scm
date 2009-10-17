@@ -180,7 +180,7 @@
       ((_ (record-name0 record-name1 ...) field-tuple)
        (map
         (lambda (record-name fields)
-          (fields->persistent-record 
+          (fields->persistent-record
            (record-constructor (record-constructor-descriptor record-name))
            fields))
         (list record-name0 record-name1 ...)

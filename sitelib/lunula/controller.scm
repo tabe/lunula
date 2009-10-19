@@ -32,12 +32,11 @@
           (prefix (lunula html) html:)
           (prefix (lunula log) log:)
           (only (lunula mod_lisp) get-header premature-end-of-header? put-header)
-          (only (lunula request) content->alist content-length-of method-of)
+          (only (lunula request) content->alist content-length-of method-of parameter-of path-of)
           (lunula sendmail)
           (only (lunula session) do-login do-logout logged-in? session-uuid session?)
           (only (lunula template) load-templates template->tree)
           (lunula tree)
-          (lunula uri)
           (lunula validation))
 
   (define *timeout* (* 5 60 1000))

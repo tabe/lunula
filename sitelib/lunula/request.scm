@@ -1,16 +1,21 @@
 (library (lunula request)
   (export content->alist
           content-length-of
-          method-of
+          fragment-of
           invalid-content-length?
           malformed-key-value?
+          method-of
           missing-content-length?
-          missing-method?)
+          missing-method?
+          missing-url?
+          parameter-of
+          path-of)
   (import (rnrs)
           (match)
           (only (srfi :13) string-tokenize)
           (only (srfi :14) char-set char-set-complement)
-          (only (uri) decode-string))
+          (only (uri) decode-string)
+          (only (lunula uri) url->fragment url->parameter url->path))
 
   (define-condition-type &malformed-key-value &condition
     make-malformed-key-value malformed-key-value?)
@@ -68,5 +73,25 @@
                  (condition
                   (make-missing-content-length)
                   (make-irritants-condition header))))))
+
+  (define-condition-type &missing-url &condition
+    make-missing-url missing-url?)
+
+  (define (url-of header)
+    (cond ((assoc "url" header)
+           => cadr)
+          (else
+           (raise (condition
+                   (make-missing-url)
+                   (make-irritants-condition header))))))
+
+  (define (path-of header)
+    (url->path (url-of header)))
+
+  (define (fragment-of header)
+    (url->fragment (url-of header)))
+
+  (define (parameter-of header)
+    (url->parameter (url-of header)))
 
 )

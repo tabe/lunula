@@ -6,7 +6,6 @@
           redirect
           define-api
           define-scenario
-          parameter-of
           do-login
           do-logout
           logged-in?
@@ -14,6 +13,6 @@
           add-input-fields
           build-entry-path
           entry-paths)
-  (import (lunula controller)
-          (lunula uri))
-  )
+  (import (lunula controller))
+
+)

@@ -48,4 +48,22 @@
   (assert-= 100 (content-length-of header))
   (assert-string=? "POST" (method-of header)))
 
+(assert-raise missing-url?
+  (fragment-of '()))
+
+(assert-equal? "fragment"
+               (fragment-of '(("url" "/?#fragment"))))
+
+(assert-raise missing-url?
+  (parameter-of '()))
+
+(assert-equal? "xxx"
+               (parameter-of '(("url" "/?xxx"))))
+
+(assert-raise missing-url?
+  (path-of '()))
+
+(assert-equal? "/path/to/somewhere"
+               (path-of '(("url" "/path/to/somewhere?xxx"))))
+
 (report)

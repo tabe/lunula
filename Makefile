@@ -23,6 +23,7 @@ uninstall:
 test:
 	$(YPSILON) tests/lunula/concurrent.scm
 	$(YPSILON) tests/lunula/configuration.scm
+	$(YPSILON) tests/lunula/controller.scm
 	$(YPSILON) tests/lunula/gettext.scm
 	$(YPSILON) tests/lunula/hmac.scm
 	$(YPSILON) tests/lunula/html.scm
@@ -30,6 +31,7 @@ test:
 	$(YPSILON) tests/lunula/mod_lisp.scm
 	$(YPSILON) tests/lunula/mysql.scm
 	$(YPSILON) tests/lunula/persistent-record.scm
+	$(YPSILON) tests/lunula/request.scm
 	$(YPSILON) tests/lunula/rss.scm
 	$(YPSILON) tests/lunula/sendmail.scm
 	$(YPSILON) tests/lunula/session.scm

@@ -15,6 +15,6 @@
           build-entry-path
           content->alist
           entry-paths)
-  (import (lunula mod_lisp)
+  (import (lunula controller)
           (lunula uri))
   )

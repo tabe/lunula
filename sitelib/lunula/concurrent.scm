@@ -5,7 +5,7 @@
 
   (define (messenger-bag-get-gracefully! bag tag timeout . default)
     (guard (con
-            ((and (condition? con)
+            ((and (who-condition? con)
                   (eq? 'messenger-bag-get! (condition-who con)))
              (if (null? default)
                  con

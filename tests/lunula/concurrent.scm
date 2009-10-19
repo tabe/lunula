@@ -8,7 +8,7 @@
 
 (define bag (make-messenger-bag 10))
 
-(assert-condition? (messenger-bag-get-gracefully! bag "x" 100))
+(assert-who-condition? (messenger-bag-get-gracefully! bag "x" 100))
 (assert-boolean=? #f (messenger-bag-get-gracefully! bag "x" 100 #f))
 
 (messenger-bag-put! bag "x" 'foo 100)

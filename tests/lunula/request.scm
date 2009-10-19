@@ -4,6 +4,22 @@
         (lunula request)
         (xunit))
 
+(define-syntax assert-content->alist
+  (syntax-rules ()
+    ((_ expected content)
+     (assert-equal? expected (content->alist content)))))
+
+(assert-raise malformed-key-value?
+  (content->alist "="))
+(assert-raise malformed-key-value?
+  (content->alist "x=a=b&"))
+
+(assert-content->alist '() "")
+(assert-content->alist '() "&")
+(assert-content->alist '() "&&")
+(assert-content->alist '((x . "")) "x=&")
+(assert-content->alist '((x . "foo bar") (y . "/path/to/there")) "x=foo+bar&y=%2fpath%2fto%2fthere")
+
 (assert-raise invalid-content-length?
   (content-length-of '(("content-length" ""))))
 

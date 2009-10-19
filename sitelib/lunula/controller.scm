@@ -12,7 +12,6 @@
           path-extension
           add-input-fields
           build-entry-path
-          content->alist
           entry-paths
           build-api-path
           api-path?)
@@ -20,9 +19,9 @@
           (concurrent)
           (match)
           (rnrs)
-          (only (srfi :1) append-map drop iota take unfold)
+          (only (srfi :1) append-map iota)
           (srfi :8)
-          (only (srfi :13) string-prefix-ci? string-suffix? string-tokenize)
+          (only (srfi :13) string-suffix? string-tokenize)
           (only (srfi :14) char-set char-set-complement)
           (srfi :19)
           (srfi :48)
@@ -33,9 +32,9 @@
           (prefix (lunula html) html:)
           (prefix (lunula log) log:)
           (only (lunula mod_lisp) get-header premature-end-of-header? put-header)
-          (only (lunula request) content-length-of method-of)
+          (only (lunula request) content->alist content-length-of method-of)
           (lunula sendmail)
-          (lunula session)
+          (only (lunula session) do-login do-logout logged-in? session-uuid session?)
           (only (lunula template) load-templates template->tree)
           (lunula tree)
           (lunula uri)
@@ -230,22 +229,6 @@
        (page (io #f) template message))
       ((_ param template)
        (page param template '()))))
-
-  (define-condition-type &malformed-key-value &condition
-    make-malformed-key-value malformed-key-value?
-    (kv malformed-key-value-kv-of))
-
-  (define (content->alist content)
-    (map
-     (lambda (kv)
-       (match (string-tokenize kv (char-set-complement (char-set #\=)))
-         ((k v)
-          (cons (string->symbol k) (uri:decode-string v 'application/x-www-form-urlencoded)))
-         ((k)
-          (cons (string->symbol k) ""))
-         (_
-          (raise (make-malformed-key-value kv)))))
-     (string-tokenize content (char-set-complement (char-set #\&)))))
 
   (define-syntax form
     (syntax-rules ()

@@ -13,7 +13,6 @@
           path-extension
           add-input-fields
           build-entry-path
-          content->alist
           entry-paths)
   (import (lunula controller)
           (lunula uri))

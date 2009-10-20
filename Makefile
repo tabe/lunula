@@ -35,6 +35,7 @@ test:
 	$(YPSILON) tests/lunula/rss.scm
 	$(YPSILON) tests/lunula/sendmail.scm
 	$(YPSILON) tests/lunula/session.scm
+	$(YPSILON) tests/lunula/sql.scm
 	$(YPSILON) tests/lunula/string.scm
 	$(YPSILON) tests/lunula/template.scm
 	$(YPSILON) tests/lunula/tree.scm

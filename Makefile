@@ -32,9 +32,11 @@ test:
 	$(YPSILON) tests/lunula/mysql.scm
 	$(YPSILON) tests/lunula/path.scm
 	$(YPSILON) tests/lunula/persistent-record.scm
+	$(YPSILON) tests/lunula/pipeline.scm
 	$(YPSILON) tests/lunula/request.scm
 	$(YPSILON) tests/lunula/rss.scm
 	$(YPSILON) tests/lunula/sendmail.scm
+	$(YPSILON) tests/lunula/server.scm
 	$(YPSILON) tests/lunula/session.scm
 	$(YPSILON) tests/lunula/sql.scm
 	$(YPSILON) tests/lunula/string.scm

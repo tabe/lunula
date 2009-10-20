@@ -6,10 +6,8 @@
           redirect
           define-api
           define-scenario
-          do-login
-          do-logout
-          logged-in?
           add-input-fields)
-  (import (lunula controller))
+  (import (lunula controller)
+          (lunula server))
 
 )

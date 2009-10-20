@@ -30,6 +30,7 @@ test:
 	$(YPSILON) tests/lunula/log.scm
 	$(YPSILON) tests/lunula/mod_lisp.scm
 	$(YPSILON) tests/lunula/mysql.scm
+	$(YPSILON) tests/lunula/path.scm
 	$(YPSILON) tests/lunula/persistent-record.scm
 	$(YPSILON) tests/lunula/request.scm
 	$(YPSILON) tests/lunula/rss.scm

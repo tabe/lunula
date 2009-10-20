@@ -9,10 +9,7 @@
           do-login
           do-logout
           logged-in?
-          path-extension
-          add-input-fields
-          build-entry-path
-          entry-paths)
+          add-input-fields)
   (import (lunula controller))
 
 )

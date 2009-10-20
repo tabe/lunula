@@ -9,58 +9,37 @@
           do-login
           do-logout
           logged-in?
-          path-extension
-          add-input-fields
-          build-entry-path
-          entry-paths
-          build-api-path
-          api-path?)
+          add-input-fields)
   (import (only (core) collect-notify display-thread-status format make-parameter usleep)
-          (concurrent)
+          (only (concurrent) future make-mailbox make-messenger-bag make-uuid messenger-bag-get! messenger-bag-put! recv send shutdown-mailbox spawn* spawn-heap-limit timeout-object?)
           (match)
           (rnrs)
-          (only (srfi :1) append-map iota)
+          (only (srfi :1) iota)
           (srfi :8)
-          (only (srfi :13) string-suffix? string-tokenize)
-          (only (srfi :14) char-set char-set-complement)
           (srfi :19)
           (srfi :48)
           (only (ypsilon socket) make-server-socket socket-accept socket-close socket-recv socket-send)
-          (prefix (uri) uri:)
           (lunula concurrent)
           (only (lunula gettext) ___)
           (prefix (lunula html) html:)
           (prefix (lunula log) log:)
           (only (lunula mod_lisp) get-header premature-end-of-header? put-header)
+          (only (lunula path) api-component-procedure api-component-template api-path? api-set! build-entry-path consume-temporary-path! entry-path? generate-temporary-path provide-temporary-path! scenario-set!)
           (only (lunula request) content->alist content-length-of method-of parameter-of path-of)
           (lunula sendmail)
           (only (lunula session) do-login do-logout logged-in? session-uuid session?)
           (only (lunula template) load-templates template->tree)
-          (lunula tree)
-          (lunula validation))
+          (lunula tree))
 
   (define *timeout* (* 5 60 1000))
-
-  (define *scenario* (make-hashtable string-hash string=?))
-
-  (define (entry-paths) (hashtable-keys *scenario*))
 
   (define *response* (make-messenger-bag 10))
 
   (define *request* (make-messenger-bag 10))
 
-  (define path-extension (make-parameter ".html"))
-
-  (define *temporary-path* (make-messenger-bag 10))
-
   (define *input-types* (make-eq-hashtable 10))
 
   (define *input-descriptions* (make-eq-hashtable 10))
-
-  (define *api* (make-eq-hashtable 10))
-
-  (define-record-type api-component
-    (fields validator template procedure))
 
   (define-syntax split-input-specification
     (syntax-rules ()
@@ -135,7 +114,7 @@
   (define-syntax make-form
     (syntax-rules ()
       ((_ (record-name record) message ...)
-       (let* ((path (string-append "/" (make-uuid) (path-extension)))
+       (let* ((path (generate-temporary-path))
               (rtd (if (record? record) (record-rtd record) (record-type-descriptor record-name)))
               (names (record-type-field-names rtd)))
          (values
@@ -185,25 +164,6 @@
              (html:input ((type "submit") (name "cancel") (value (___ 'cancel))))))
            path))))))
 
-  (define (entry-path? path)
-    (hashtable-ref *scenario* path #f))
-
-  (define (api-path? path)
-    (and (string? path)
-         (let ((ext (path-extension)))
-           (and (string-suffix? ext path)
-                (let ((ls (string-tokenize (substring path 0 (- (string-length path) (string-length ext)))
-                                           (char-set-complement (char-set #\/)))))
-                  (if (null? ls)
-                      #f
-                      (cond ((hashtable-ref *api* (string->symbol (car ls)) #f)
-                             => (lambda (component)
-                                  (let ((args (map uri:decode-string (cdr ls))))
-                                    (guide ((api-component-validator component) args)
-                                      (lambda _ #f)
-                                      (lambda _ (cons component args))))))
-                            (else #f))))))))
-
   (define (send-header&content client header . content)
     (let ((h (call-with-string-output-port (lambda (port) (put-header port header)))))
       (socket-send client (string->utf8 h) 0))
@@ -235,7 +195,7 @@
        (receive (rtd path body)
            (make-form (record-name record) message ...)
          (let ((f (future
-                   (messenger-bag-put! *temporary-path* path #t)
+                   (provide-temporary-path! path)
                    (match (messenger-bag-get! *request* path (* 2 *timeout*))
                      ((header content)
                       (let ((alist (content->alist content)))
@@ -252,7 +212,7 @@
            (send io path)
            (let ((fields (f *timeout*)))
              (cond ((timeout-object? fields)
-                    (messenger-bag-get-gracefully! *temporary-path* path 100)
+                    (consume-temporary-path! path)
                     (messenger-bag-get-gracefully! *request* path 100)
                     (raise fields))
                    ((vector? fields)
@@ -270,10 +230,10 @@
   (define-syntax mail
     (syntax-rules ()
       ((_ (io sess) template message composer)
-       (let* ((path (string-append "/" (make-uuid) (path-extension)))
+       (let* ((path (generate-temporary-path))
               (f (future
                   (cond ((zero? (call-with-values (lambda () (composer path)) sendmail))
-                         (messenger-bag-put! *temporary-path* path #t)
+                         (provide-temporary-path! path)
                          (match (messenger-bag-get! *request* path (* 2 *timeout*))
                            ((header content) #t)
                            (_ #f)))
@@ -283,7 +243,7 @@
          (send io path)
          (let ((result (f *timeout*)))
            (cond ((timeout-object? result)
-                  (messenger-bag-get-gracefully! *temporary-path* path 100)
+                  (consume-temporary-path! path)
                   (messenger-bag-get-gracefully! *request* path 100)
                   #f)
                  (else result)))))
@@ -440,7 +400,7 @@
                                                              body)))
                                             (else (default-handler header client)))))
                                   clean-up)))
-                    ((messenger-bag-get-gracefully! *temporary-path* path 100 #f)
+                    ((consume-temporary-path! path)
                      (spawn* (lambda ()
                                (messenger-bag-put! *request* path (list header content))
                                (let ((response (messenger-bag-get! *response* path)))
@@ -451,12 +411,6 @@
                      (spawn* (lambda () (default-handler header client))
                              clean-up))))))
         (lp (socket-accept socket)))))
-
-  (define (build-entry-path name . query)
-    (let ((path (string-append "/" (symbol->string name) (path-extension))))
-      (cond ((null? query) path)
-            ((for-all string? query) (apply string-append path "?" query))
-            (else path))))
 
   (define-syntax define-scenario
     (syntax-rules ()
@@ -471,7 +425,7 @@
                            (lambda () (send io uuid))
                            (lambda () e0 e1 ...)
                            (lambda () (shutdown-mailbox io)))))))
-           (hashtable-set! *scenario* (build-entry-path 'name) proc)
+           (scenario-set! 'name proc)
            proc)))
       ((_ (name io request) e0 e1 ...)
        (define name
@@ -482,29 +436,13 @@
                                 (lambda () (send io uuid))
                                 (lambda () e0 e1 ...)
                                 (lambda () (shutdown-mailbox io)))))))
-           (hashtable-set! *scenario* (build-entry-path 'name) proc)
+           (scenario-set! 'name proc)
            proc)))))
-
-  (define (build-api-path name query . args)
-    (let ((last (cons
-                 (path-extension)
-                 (if (string? query)
-                     (list "?" query)
-                     '()))))
-      (cond ((for-all string? args)
-             (apply string-append
-                    (cons*
-                     "/"
-                     (symbol->string name)
-                     (append
-                      (append-map (lambda (arg) (list "/" arg)) args)
-                      last))))
-            (else (apply string-append "/" last)))))
 
   (define-syntax define-api
     (syntax-rules ()
       ((_ (name arg ...) validator template e0 e1 ...)
        (let ((proc (lambda (arg ...) e0 e1 ...)))
-         (hashtable-set! *api* 'name (make-api-component validator 'template proc))))))
+         (api-set! 'name validator 'template proc)))))
 
 )

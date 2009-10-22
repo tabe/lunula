@@ -92,10 +92,14 @@
        (fold-left
         (lambda (s ref key)
           (let ((tt (record-name->table-name ref))
-                (ti (name->t ref))
-                (tk (name->t key)))
-            (format "~a JOIN ~a ~a ON ~a.id = ~a.~a_id"
-                    s tt ti ti tk tt)))
+                (ti (name->t ref)))
+            (cond ((pair? key)
+                   (let ((k (car key)))
+                     (format "~a JOIN ~a ~a ON ~a.~a_id = ~a.id"
+                             s tt ti ti (record-name->table-name k) (name->t k))))
+                  (else
+                   (format "~a JOIN ~a ~a ON ~a.id = ~a.~a_id"
+                           s tt ti ti (name->t key) tt)))))
         (format "~a ~a" (record-name->table-name 'record-name) (name->t 'record-name))
         '(reference ...)
         '(foreign ...)))))

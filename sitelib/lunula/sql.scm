@@ -86,6 +86,20 @@
               (string-append left " IS NULL"))
           (format "~a = '~a'" left (escape value)))))
 
+  (define-syntax join
+    (syntax-rules ()
+      ((_ name->t record-name (reference foreign) ...)
+       (fold-left
+        (lambda (s ref key)
+          (let ((tt (record-name->table-name ref))
+                (ti (name->t ref))
+                (tk (name->t key)))
+            (format "~a JOIN ~a ~a ON ~a.id = ~a.~a_id"
+                    s tt ti ti tk tt)))
+        (format "~a ~a" (record-name->table-name 'record-name) (name->t 'record-name))
+        '(reference ...)
+        '(foreign ...)))))
+
   (define-syntax exists-clause
     (syntax-rules ()
       ((_ escape depth (record-name (reference foreign) ...) param proc)
@@ -95,16 +109,7 @@
                              (proc x))))
               (condition (where escape depth+1 param name->t)))
          (format "EXISTS (SELECT 1 FROM ~a~a)"
-                 (fold-left
-                  (lambda (s ref key)
-                    (let ((tt (record-name->table-name ref))
-                          (ti (name->t ref))
-                          (tk (name->t key)))
-                      (format "~a JOIN ~a ~a ON ~a.id = ~a.~a_id"
-                              s tt ti ti tk tt)))
-                  (format "~a ~a" (record-name->table-name 'record-name) (name->t 'record-name))
-                  '(reference ...)
-                  '(foreign ...))
+                 (join name->t record-name (reference foreign) ...)
                  (if (string? condition)
                      (string-append " WHERE " condition)
                      ""))))))
@@ -180,16 +185,7 @@
                                     column))
                               #f
                               (apply append c-tuple))
-                             (fold-left
-                              (lambda (s ref key)
-                                (let ((tt (record-name->table-name ref))
-                                      (ti (name->t ref))
-                                      (tk (name->t key)))
-                                  (format "~a JOIN ~a ~a ON ~a.id = ~a.~a_id"
-                                          s tt ti ti tk tt)))
-                              (format "~a ~a" (record-name->table-name 'record-name) (name->t 'record-name))
-                              '(reference ...)
-                              '(foreign ...))
+                             (join name->t record-name (reference foreign) ...)
                              (if (string? condition)
                                  (string-append " WHERE " condition)
                                  "")

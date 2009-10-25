@@ -1,0 +1,25 @@
+(library (lunula md5)
+  (export md5)
+  (import (rnrs)
+          (ypsilon c-types)
+          (ypsilon gcrypt))
+
+  (define (md5 data)
+    (let ((hdp (make-bytevector sizeof:void*)))
+      (gcry_md_open hdp GCRY_MD_MD5 0)
+      (let ((hd (make-bytevector-mapping (c-void*-ref hdp) sizeof:void*)))
+        (gcry_md_write hd data (bytevector-length data))
+        (let* ((result (gcry_md_read hd 0))
+               (r (make-bytevector-mapping result 16)))
+          (dynamic-wind
+              (lambda () #f)
+              (lambda () (call-with-string-output-port
+                          (lambda (port)
+                            (do ((i 0 (+ i 1)))
+                                ((= i 16))
+                              (let ((b (bytevector-u8-ref r i)))
+                                (when (< b 16) (put-char port #\0))
+                                (put-string port (number->string b 16)))))))
+              (lambda () (gcry_md_close hd)))))))
+
+)

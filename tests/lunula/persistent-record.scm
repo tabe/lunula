@@ -15,6 +15,12 @@
       (lambda (a b c)
         (p a b c))))))
 
+(assert-boolean=? #f (maybe-integer ""))
+(assert-= 0 (maybe-integer 0))
+(assert-= 0 (maybe-integer "0"))
+(assert-= 100 (maybe-integer "100"))
+(assert-boolean=? #f (maybe-integer "3.14"))
+
 (let ((p (make-persistent-record 7 #f #f)))
   (assert-persistent-record? p)
   (assert-= 7 (id-of p))

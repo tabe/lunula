@@ -16,7 +16,7 @@
           (ypsilon mysql)
           (only (lunula string))
           (prefix (only (lunula log) info) log:)
-          (only (lunula persistent-record) created-at-set! id-of id-set! string->id updated-at-set!)
+          (only (lunula persistent-record) created-at-set! id-of id-set! maybe-id updated-at-set!)
           (only (lunula sql) call-with-tuple delete-query insert-query lookup-query record-name->table-name update-query))
 
   (define NULL 0)
@@ -80,7 +80,7 @@
 
   (define (fields->persistent-record constructor fields)
     (let ((record (apply constructor (cdddr fields))))
-      (id-set! record (string->id (car fields)))
+      (id-set! record (maybe-id (car fields)))
       (created-at-set! record (cadr fields))
       (updated-at-set! record (caddr fields))
       record))

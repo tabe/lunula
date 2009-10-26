@@ -1,6 +1,5 @@
 (library (lunula persistent-record)
-  (export string->id
-          maybe-id
+  (export maybe-id
           maybe-integer
           persistent-record
           persistent-record?
@@ -23,7 +22,11 @@
     (if (string? x) (string->id x) x))
 
   (define (maybe-integer x)
-    (if (string? x) (string->number x) #f))
+    (cond ((integer? x) x)
+          ((string? x)
+           (let ((n (string->number x)))
+             (and (integer? n) n)))
+          (else #f)))
 
   (define-record-type persistent-record
     (fields (mutable id id-of id-set!)

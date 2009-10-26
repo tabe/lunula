@@ -93,10 +93,18 @@
         (lambda (s ref key)
           (let ((tt (record-name->table-name ref))
                 (ti (name->t ref)))
-            (cond ((pair? key)
-                   (let ((k (car key)))
-                     (format "~a JOIN ~a ~a ON ~a.~a_id = ~a.id"
-                             s tt ti ti (record-name->table-name k) (name->t k))))
+            (cond ((list? key)
+                   (case (length key)
+                     ((2) 
+                      (let ((k (car key))
+                            (m (string-upcase (symbol->string (cadr key)))))
+                        (format "~a ~a JOIN ~a ~a ON ~a.~a_id = ~a.id"
+                                s m tt ti ti (record-name->table-name k) (name->t k))))
+                     ((1)
+                      (let ((k (car key)))
+                        (format "~a JOIN ~a ~a ON ~a.~a_id = ~a.id"
+                                s tt ti ti (record-name->table-name k) (name->t k))))
+                     (else (assertion-violation 'join "invalid foreign key" key))))
                   (else
                    (format "~a JOIN ~a ~a ON ~a.id = ~a.~a_id"
                            s tt ti ti (name->t key) tt)))))

@@ -1,4 +1,4 @@
-(library (lunula md5)
+(library (lunula md)
   (export md5)
   (import (rnrs)
           (ypsilon c-types)

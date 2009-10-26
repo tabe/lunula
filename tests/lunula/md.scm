@@ -1,7 +1,7 @@
 #!r6rs
 
 (import (rnrs)
-        (lunula md5)
+        (lunula md)
         (xunit))
 
 (define-syntax assert-md5

@@ -28,7 +28,7 @@ test:
 	$(YPSILON) tests/lunula/hmac.scm
 	$(YPSILON) tests/lunula/html.scm
 	$(YPSILON) tests/lunula/log.scm
-	$(YPSILON) tests/lunula/md5.scm
+	$(YPSILON) tests/lunula/md.scm
 	$(YPSILON) tests/lunula/mod_lisp.scm
 	$(YPSILON) tests/lunula/mysql.scm
 	$(YPSILON) tests/lunula/path.scm

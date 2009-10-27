@@ -269,17 +269,12 @@
 
   (define-syntax destroy
     (syntax-rules ()
+      ((_ mysql record)
+       (let* ((table (record-name->table-name (record-type-name (record-rtd record))))
+              (query (delete-query table record)))
+         (and (zero? (execute mysql query))
+              (mysql_affected_rows mysql))))
       ((_ record)
-       (call-with-mysql
-        (lambda (mysql)
-          (let* ((table (record-name->table-name (record-type-name (record-rtd record))))
-                 (query (delete-query table record)))
-            (and (zero? (execute mysql query))
-                 (mysql_affected_rows mysql))))))
-      ((_ record-name id)
-       (call-with-mysql
-        (lambda (mysql)
-          (and (zero? (execute mysql (delete-query/id (record-name->table-name 'record-name) id)))
-               (mysql_affected_rows mysql)))))))
+       (call-with-mysql (lambda (mysql) (destroy mysql record))))))
 
 )

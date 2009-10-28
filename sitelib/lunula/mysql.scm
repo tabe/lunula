@@ -3,6 +3,7 @@
           call-with-mysql
           close
           connect
+          count
           destroy
           execute
           lookup
@@ -17,7 +18,7 @@
           (only (lunula string))
           (prefix (only (lunula log) info) log:)
           (only (lunula persistent-record) created-at-set! id-of id-set! maybe-id updated-at-set!)
-          (only (lunula sql) call-with-tuple delete-query insert-query lookup-query record-name->table-name update-query))
+          (lunula sql))
 
   (define NULL 0)
 
@@ -116,6 +117,33 @@
            fields))
         (list record-name0 record-name1 ...)
         field-tuple))))
+
+  (define-syntax count
+    (syntax-rules ()
+      ((_ (record-name (reference foreign) ...) param)
+       (call-with-mysql
+        (lambda (mysql)
+          (call-with-count
+           (lambda (x) (escape/mysql mysql x))
+           (record-name (reference foreign) ...)
+           param
+           ()
+           (lambda (query)
+             (and (zero? (execute mysql query))
+                  (let ((result (mysql_store_result mysql)))
+                    (and (not (zero? result))
+                         (dynamic-wind
+                             (lambda () #f)
+                             (lambda ()
+                               (let ((row (mysql_fetch_row result)))
+                                 (and (not (zero? row))
+                                      (let ((lengths (mysql_fetch_lengths result))
+                                            (f (c-void*-ref row)))
+                                        (and (not (zero? f))
+                                             (string->number (utf8->string (make-bytevector-mapping f (c-unsigned-int-ref lengths)))))))))
+                             (lambda () (mysql_free_result result)))))))))))
+      ((_ record-name param)
+       (count (record-name) param))))
 
   (define-syntax lookup
     (syntax-rules ()

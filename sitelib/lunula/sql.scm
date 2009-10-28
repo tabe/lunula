@@ -1,5 +1,6 @@
 (library (lunula sql)
-  (export call-with-tuple
+  (export call-with-count
+          call-with-tuple
           delete-query
           insert-query
           lookup-query
@@ -181,6 +182,20 @@
        (format "~a OFFSET ~a" (epilog (e ...) name->t) val))
       ((_ ((limit val) e ...) name->t)
        (format "~a LIMIT ~a" (epilog (e ...) name->t) val))))
+
+  (define-syntax call-with-count
+    (syntax-rules ()
+      ((_ escape (record-name (reference foreign) ...) param rest cont)
+       (let* ((name->t (->t 0 record-name reference ...))
+              (condition (where escape 0 param name->t))
+              (tail (epilog rest name->t))
+              (query (format "SELECT COUNT(*) FROM ~a~a~a"
+                             (join name->t record-name (reference foreign) ...)
+                             (if (string? condition)
+                                 (string-append " WHERE " condition)
+                                 "")
+                             tail)))
+         (cont query)))))
 
   (define-syntax call-with-tuple
     (syntax-rules ()

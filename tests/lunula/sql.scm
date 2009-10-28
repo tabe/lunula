@@ -5,6 +5,14 @@
         (lunula sql)
         (xunit))
 
+(define-syntax assert-call-with-count
+  (syntax-rules ()
+    ((_ expected arg0 arg1 arg2 arg3)
+     (call-with-count
+      arg0 arg1 arg2 arg3
+      (lambda (query)
+        (assert-string=? expected query))))))
+
 (define-syntax assert-call-with-tuple
   (syntax-rules ()
     ((_ (c-tuple query) arg0 arg1 arg2 arg3)
@@ -52,6 +60,21 @@
 
 (assert-string=? "foo" (record-name->table-name 'foo))
 (assert-string=? "a_b_c" (record-name->table-name 'a-b-c))
+
+(assert-call-with-count "SELECT COUNT(*) FROM foo t0_0"
+                        values (foo) () ())
+(assert-call-with-count "SELECT COUNT(*) FROM bar t0_0 JOIN foo t0_1 ON t0_1.id = t0_0.foo_id"
+                        values (bar (foo bar)) () ())
+(assert-call-with-count "SELECT COUNT(*) FROM bar t0_0 JOIN foo t0_1 ON t0_1.id = t0_0.foo_id WHERE t0_1.y = '200' AND t0_0.y = '100'"
+                        values (bar (foo bar)) ((bar (y 100)) (foo (y 200))) ())
+(assert-call-with-count "SELECT COUNT(*) FROM bar t0_0 JOIN foo t0_1 ON t0_1.id = t0_0.foo_id WHERE t0_1.y = '200' AND t0_0.y = '100' ORDER BY t0_1.id desc LIMIT 10 OFFSET 5"
+                        values (bar (foo bar)) ((bar (y 100)) (foo (y 200))) ((order-by (foo (id desc))) (offset 5) (limit 10)))
+(assert-call-with-count "SELECT COUNT(*) FROM foo t0_0 JOIN bar t0_1 ON t0_1.foo_id = t0_0.id WHERE t0_0.y = '200' AND t0_1.y = '100' ORDER BY t0_0.id desc LIMIT 10 OFFSET 5"
+                        values (foo (bar (foo))) ((bar (y 100)) (foo (y 200))) ((order-by (foo (id desc))) (offset 5) (limit 10)))
+(assert-call-with-count "SELECT COUNT(*) FROM foo t0_0 LEFT JOIN bar t0_1 ON t0_1.foo_id = t0_0.id WHERE t0_0.y = '200' AND t0_1.y = '100' ORDER BY t0_0.id desc LIMIT 10 OFFSET 5"
+                        values (foo (bar (foo left))) ((bar (y 100)) (foo (y 200))) ((order-by (foo (id desc))) (offset 5) (limit 10)))
+(assert-call-with-count "SELECT COUNT(*) FROM bar t0_0 WHERE EXISTS (SELECT 1 FROM foo t1_0 WHERE t1_0.z = 'param z' AND t0_0.foo_id = t1_0.id) AND t0_0.x = 'param x' ORDER BY t0_0.y asc"
+                        values (bar) ((bar (x "param x")) (exists (foo) ((bar (foo)) (foo (z "param z"))))) ((order-by (bar (y asc)))))
 
 (assert-call-with-tuple ((("t0_0.id" "t0_0.created_at" "t0_0.updated_at" "t0_0.x" "t0_0.y"))
                          "SELECT t0_0.id, t0_0.created_at, t0_0.updated_at, t0_0.x, t0_0.y FROM foo t0_0")

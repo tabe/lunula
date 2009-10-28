@@ -144,9 +144,11 @@
 (assert-execute "INSERT INTO foobar (name, memo) VALUES ('temporary', 'temporary')")
 (let ((len (length (lookup-all foobar ()))))
   (assert-= 2 len))
+(assert-= 2 (count foobar ()))
 (assert-execute "DELETE FROM foobar")
 (let ((len (length (lookup-all foobar ()))))
   (assert-= 0 len))
+(assert-= 0 (count foobar ()))
 (assert-execute "ROLLBACK")
 
 ;; lookup-all with foregin references
@@ -171,6 +173,14 @@
                           ((baz (name #f))))))
   (assert (list? tuples))
   (assert (null? tuples)))
+(assert-= 2 (count (cuux
+                    (baz cuux)
+                    (foobar baz))
+                   ((cuux (name #t)))))
+(assert-= 0 (count (cuux
+                    (baz cuux)
+                    (foobar baz))
+                   ((baz (name #f)))))
 (assert-execute "ROLLBACK")
 
 (close)

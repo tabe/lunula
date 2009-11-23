@@ -5,8 +5,7 @@
           mail
           redirect
           define-api
-          define-scenario
-          add-input-fields)
+          define-scenario)
   (import (lunula controller)
           (lunula server))
 

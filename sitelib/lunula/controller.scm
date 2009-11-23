@@ -6,12 +6,11 @@
           redirect
           define-api
           define-scenario
-          add-input-fields
           send-html
           send-response)
   (import (rnrs)
           (only (core) make-parameter usleep)
-          (only (ypsilon concurrent) future make-mailbox make-uuid messenger-bag-get! messenger-bag-put! recv send shutdown-mailbox timeout-object?)
+          (only (ypsilon concurrent) future make-mailbox messenger-bag-get! messenger-bag-put! recv send shutdown-mailbox timeout-object?)
           (match)
           (only (srfi :1) iota)
           (only (srfi :8) receive)
@@ -22,6 +21,7 @@
           (only (lunula concurrent) messenger-bag-get-gracefully!)
           (only (lunula gettext) ___)
           (prefix (lunula html) html:)
+          (only (lunula input-field) input-types input-descriptions input-field)
           (prefix (lunula log) log:)
           (only (lunula mod_lisp) put-header)
           (only (lunula path) api-set! build-entry-path consume-temporary-path! generate-temporary-path provide-temporary-path! scenario-set!)
@@ -34,38 +34,6 @@
 
   (define *timeout* (* 5 60 1000))
 
-  (define *input-types* (make-eq-hashtable 10))
-
-  (define *input-descriptions* (make-eq-hashtable 10))
-
-  (define-syntax split-input-specification
-    (syntax-rules ()
-      ((_ (t d) () proc)
-       (proc (reverse t) (reverse d)))
-      ((_ (t d) (#f e ...) proc)
-       (split-input-specification ((cons #f t) (cons #f d)) (e ...) proc))
-      ((_ (t d) ((type) e ...) proc)
-       (split-input-specification ((cons 'type t) (cons #f d)) (e ...) proc))
-      ((_ (t d) ((type desc) e ...) proc)
-       (split-input-specification ((cons 'type t) (cons desc d)) (e ...) proc))))
-
-  (define-syntax add-input-fields
-    (syntax-rules ()
-      ((_ record-name (e ...))
-       (split-input-specification
-        ('() '())
-        (e ...)
-        (lambda (t d)
-          (let ((rtd (record-type-descriptor record-name)))
-            (hashtable-set! *input-types* rtd t)
-            (hashtable-set! *input-descriptions* rtd d)))))))
-
-  (define (input-types rtd)
-    (hashtable-ref *input-types* rtd '()))
-
-  (define (input-descriptions rtd)
-    (hashtable-ref *input-descriptions* rtd '()))
-
   (define-syntax make-html
     (syntax-rules ()
       ((_ template body ...)
@@ -73,40 +41,6 @@
 
   (define (input-title rtd name)
     (___ (string->symbol (format "~a-~a" (record-type-name rtd) name))))
-
-  (define (radio-buttons name v ls)
-
-    (define (radio-button x y)
-      (let ((id (make-uuid)))
-        (list (html:input ((type 'radio) (name name) (value (car x)) (id id) (checked y)))
-              (html:label ((for id)) (cadr x))
-              "&nbsp;")))
-
-    (let ((checked (map (lambda (x) (string=? (format "~a" v) (format "~a" (car x)))) ls)))
-      (if (exists values checked)
-          (map radio-button ls checked)
-          (map (lambda (x) (radio-button x (caddr x))) ls))))
-
-  (define (input-field type name v)
-    (cond ((list? type)
-           (match type
-             (('radio . ls)
-              (radio-buttons name v ls))
-             (('select . ls)
-              (html:select
-               ((name name))
-               (map
-                (lambda (x)
-                  (let ((selected (string=? (format "~a" v) (format "~a" (car x)))))
-                    (html:option ((value (car x)) (selected selected)) (cadr x))))
-                ls)))))
-          ((eq? 'textarea type)
-           (html:textarea ((name name)) v))
-          ((symbol? type)
-           (case type
-             ((password) (html:input ((type type) (name name))))
-             (else (html:input ((type type) (name name) (value v))))))
-          (else (error 'input-field "invalid type" (list name type v)))))
 
   (define-syntax make-form
     (syntax-rules ()

@@ -123,7 +123,10 @@
                      => (lambda (pair)
                           (spawn* (lambda ()
                                     (let ((component (car pair)))
-                                      (cond ((apply (api-component-procedure component) (cdr pair))
+                                      (cond ((guard (con
+                                                     ((assertion-violation? con)
+                                                      #f))
+                                               (apply (api-component-procedure component) (cdr pair)))
                                              => (lambda (body)
                                                   (send-html client
                                                              (api-component-template component)

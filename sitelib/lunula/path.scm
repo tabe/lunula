@@ -12,8 +12,11 @@
           generate-temporary-path
           make-api-component
           path-extension
+          path-transformer
+          path-builder
           provide-temporary-path!
-          scenario-set!)
+          scenario-set!
+          scenario-clear!)
   (import (rnrs)
           (only (core) make-parameter)
           (only (srfi :1) append-map)
@@ -25,6 +28,10 @@
           (only (lunula validation) guide))
 
   (define path-extension (make-parameter ".html"))
+
+  (define path-transformer (make-parameter values))
+
+  (define path-builder (make-parameter values))
 
   (define *scenario* (make-hashtable string-hash string=?))
 
@@ -44,8 +51,9 @@
     (and (string? path)
          (let ((ext (path-extension)))
            (and (string-suffix? ext path)
-                (let ((ls (string-tokenize (substring path 0 (- (string-length path) (string-length ext)))
-                                           (char-set-complement (char-set #\/)))))
+                (let ((ls ((path-transformer)
+                           (string-tokenize (substring path 0 (- (string-length path) (string-length ext)))
+                                            (char-set-complement (char-set #\/))))))
                   (if (null? ls)
                       #f
                       (cond ((hashtable-ref *api* (string->symbol (car ls)) #f)
@@ -62,18 +70,19 @@
                  (if (string? query)
                      (list "?" query)
                      '()))))
-      (cond ((for-all string? args)
-             (apply string-append
-                    (cons*
-                     "/"
-                     (symbol->string name)
-                     (append
-                      (append-map (lambda (arg) (list "/" arg)) args)
-                      last))))
-            (else (apply string-append "/" last)))))
+      ((path-builder)
+       (cond ((for-all string? args)
+              (apply string-append
+                     (cons*
+                      "/"
+                      (symbol->string name)
+                      (append
+                       (append-map (lambda (arg) (list "/" arg)) args)
+                       last))))
+             (else (apply string-append "/" last))))))
 
   (define (build-entry-path name . query)
-    (let ((path (string-append "/" (symbol->string name) (path-extension))))
+    (let ((path ((path-builder) (string-append "/" (symbol->string name) (path-extension)))))
       (cond ((null? query) path)
             ((for-all string? query) (apply string-append path "?" query))
             (else path))))
@@ -84,8 +93,11 @@
   (define (scenario-set! name proc)
     (hashtable-set! *scenario* (build-entry-path name) proc))
 
+  (define (scenario-clear!)
+    (hashtable-clear! *scenario*))
+
   (define (generate-temporary-path)
-    (string-append "/" (make-uuid) (path-extension)))
+    ((path-builder) (string-append "/" (make-uuid) (path-extension))))
 
   (define (provide-temporary-path! path)
     (messenger-bag-put! *temporary-path* path #t))

@@ -27,6 +27,7 @@ test:
 	$(YPSILON) tests/lunula/gettext.scm
 	$(YPSILON) tests/lunula/hmac.scm
 	$(YPSILON) tests/lunula/html.scm
+	$(YPSILON) tests/lunula/http.scm
 	$(YPSILON) tests/lunula/input-field.scm
 	$(YPSILON) tests/lunula/log.scm
 	$(YPSILON) tests/lunula/md.scm

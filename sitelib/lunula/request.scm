@@ -9,12 +9,15 @@
           missing-method?
           missing-url?
           parameter-of
-          path-of)
+          path-of
+          accept-language-of
+          locale-of)
   (import (rnrs)
           (match)
           (only (srfi :13) string-tokenize)
           (only (srfi :14) char-set char-set-complement)
           (only (uri) decode-string)
+          (only (lunula http) string->accept-language)
           (only (lunula uri) url->fragment url->parameter url->path))
 
   (define-condition-type &malformed-key-value &condition
@@ -93,5 +96,33 @@
 
   (define (parameter-of header)
     (url->parameter (url-of header)))
+
+  (define (accept-language-of header)
+    (cond ((assoc "Accept-Language" header) => cadr)
+          ((assoc "accept-language" header) => cadr)
+          (else #f)))
+
+  (define (locale-of header)
+
+    (define (interpret str)
+      (let ((ls (string->accept-language str)))
+        (cond ((null? ls)
+               #f)
+              (else
+               (let ((first (caar ls)))
+                 (cond ((string-ci=? "en" first)
+                        'en)
+                       ((string-ci=? "en-gb" first)
+                        'en)
+                       ((string-ci=? "en-us" first)
+                        'en)
+                       ((string-ci=? "ja" first)
+                        'ja)
+                       ((string-ci=? "ja-jp" first)
+                        'ja)
+                       (else #f)))))))
+
+    (cond ((accept-language-of header) => interpret)
+          (else #f)))
 
 )

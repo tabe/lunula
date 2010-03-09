@@ -2,8 +2,9 @@
   (export __
           ___
           gettext
-          locale)
-  (import (only (core) make-parameter)
+          locale
+          localize)
+  (import (only (core) make-parameter parameterize)
           (rnrs))
 
   (define *default-locale* 'en)
@@ -32,6 +33,15 @@
     (syntax-rules ()
       ((_ msgid)
        (___ 'msgid))))
+
+  (define-syntax localize
+    (syntax-rules ()
+      ((_ lang e0 e1 ...)
+       (let ((x lang))
+         (cond ((symbol? x)
+                (parameterize ((*locale* x))
+                  e0 e1 ...))
+               (else e0 e1 ...))))))
 
   (define-syntax gettext
     (syntax-rules ()

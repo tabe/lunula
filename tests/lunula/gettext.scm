@@ -30,4 +30,7 @@
 (assert-string=? "foo" (__ foo))
 (assert-string=? "foo" (___ 'foo))
 
+(assert-equal? '(en "Hello, world.") (localize 'en (list (locale) (__ hello-world))))
+(assert-equal? 'ja (locale))
+
 (report)

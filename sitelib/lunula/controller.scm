@@ -19,14 +19,14 @@
           (srfi :48)
           (only (ypsilon socket) socket-send)
           (only (lunula concurrent) messenger-bag-get-gracefully!)
-          (only (lunula gettext) ___)
+          (only (lunula gettext) ___ localize)
           (prefix (lunula html) html:)
           (only (lunula input-field) input-types input-descriptions input-field)
           (prefix (lunula log) log:)
           (only (lunula mod_lisp) put-header)
           (only (lunula path) api-set! build-entry-path consume-temporary-path! generate-temporary-path provide-temporary-path! scenario-set!)
           (only (lunula pipeline) request-drop! request-get! response-put!)
-          (only (lunula request) content->alist)
+          (only (lunula request) content->alist locale-of)
           (only (lunula sendmail) sendmail)
           (only (lunula session) session-uuid session?)
           (only (lunula template) template->tree)
@@ -36,8 +36,10 @@
 
   (define-syntax make-html
     (syntax-rules ()
-      ((_ template body ...)
-       (tree->string (template->tree template) body ...))))
+      ((_ header template body ...)
+       (let* ((lang (locale-of header))
+              (tree (template->tree template lang)))
+         (localize lang (tree->string tree body ...))))))
 
   (define (input-title rtd name)
     (___ (string->symbol (format "~a-~a" (record-type-name rtd) name))))
@@ -101,8 +103,8 @@
     (unless (null? content)
       (socket-send client (car content) 0)))
 
-  (define (send-html client template uuid body)
-    (let* ((html (make-html template uuid body))
+  (define (send-html client header template uuid body)
+    (let* ((html (make-html header template uuid body))
            (content (string->utf8 html)))
       (send-header&content client
                            `(("Status" . "200 OK")
@@ -196,17 +198,17 @@
       ((_ (io) path)
        (redirect (io #f) path))))
 
-  (define (send-response client response)
+  (define (send-response client header response)
     (match response
       ((200 template uuid body)
-       (send-html client template uuid body))
+       (send-html client header template uuid body))
       ((302 url)
        (send-header&content client
                             `(("Status" . "302 Found")
                               ("Location" . ,url))))))
 
   (define (default-handler header client)
-    (let ((content (string->utf8 (make-html 404))))
+    (let ((content (string->utf8 (make-html header 404))))
       (send-header&content client
                            `(("Status" . "404 Not Found")
                              ("Content-Type" . "text/html; charset=UTF-8")
@@ -224,7 +226,7 @@
                            (data content))
                        (dynamic-wind
                            (lambda () (send io uuid))
-                           (lambda () e0 e1 ...)
+                           (lambda () (localize (locale-of header) e0 e1 ...))
                            (lambda () (shutdown-mailbox io)))))))
            (scenario-set! 'name proc)
            proc)))
@@ -235,7 +237,7 @@
                                 (request header))
                             (dynamic-wind
                                 (lambda () (send io uuid))
-                                (lambda () e0 e1 ...)
+                                (lambda () (localize (locale-of header) e0 e1 ...))
                                 (lambda () (shutdown-mailbox io)))))))
            (scenario-set! 'name proc)
            proc)))))

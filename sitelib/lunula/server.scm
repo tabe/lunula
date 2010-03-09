@@ -117,7 +117,7 @@
                             (spawn* (lambda ()
                                       (let ((response (response-get! uuid)))
                                         (log:info "lunula> response: ~s" response)
-                                        (send-response client response)))
+                                        (send-response client header response)))
                                     clean-up))))
                     ((api-path? path)
                      => (lambda (pair)
@@ -129,6 +129,7 @@
                                                (apply (api-component-procedure component) (cdr pair)))
                                              => (lambda (body)
                                                   (send-html client
+                                                             header
                                                              (api-component-template component)
                                                              (cond ((logged-in? (parameter-of header)) => session-uuid)
                                                                    (else #f))
@@ -140,10 +141,10 @@
                                (request-put! path (list header content))
                                (let ((response (response-get! path)))
                                  (log:info "lunula> response: ~s" response)
-                                 (send-response client response)))
+                                 (send-response client header response)))
                              clean-up))
                     (else
-                     (spawn* (lambda () (default-handler header client))
+                     (spawn* (lambda () (default-handler client header))
                              clean-up))))))
         (lp (socket-accept socket)))))
 

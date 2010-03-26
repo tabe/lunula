@@ -207,7 +207,7 @@
                             `(("Status" . "302 Found")
                               ("Location" . ,url))))))
 
-  (define (default-handler header client)
+  (define (default-handler client header)
     (let ((content (string->utf8 (make-html header 404))))
       (send-header&content client
                            `(("Status" . "404 Not Found")

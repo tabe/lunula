@@ -134,7 +134,7 @@
                                                              (cond ((logged-in? (parameter-of header)) => session-uuid)
                                                                    (else #f))
                                                              body)))
-                                            (else (default-handler header client)))))
+                                            (else (default-handler client header)))))
                                   clean-up)))
                     ((consume-temporary-path! path)
                      (spawn* (lambda ()
